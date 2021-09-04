@@ -1,4 +1,4 @@
-# Wayfärer
+# Drumchords
 
 Midi synth template project written in rust.
 
