@@ -1,6 +1,6 @@
 [package]
-name = "wayfarer"
-version = "0.3.0"
+name = "drumchords"
+version = "0.1.0"
 authors = ["joel nises <joel.nises@gmail.com>"]
 edition = "2018"
 
@@ -23,6 +23,7 @@ ringbuf = "0.2"
 web-sys = { version = "0.3", features = ["console", "Window"] }
 console_error_panic_hook = "0.1"
 cfg-if = "1.0"
+hound = "3.4.0"
 
 [profile.release]
 # make things smaller

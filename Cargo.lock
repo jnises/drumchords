@@ -665,6 +665,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
+name = "drumchords"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cfg-if 1.0.0",
+ "chrono",
+ "console_error_panic_hook",
+ "cpal",
+ "crossbeam",
+ "eframe",
+ "env_logger",
+ "hound",
+ "log",
+ "midir",
+ "parking_lot",
+ "ringbuf",
+ "web-sys",
+ "wmidi",
+]
+
+[[package]]
 name = "eframe"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -904,6 +925,12 @@ checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "hound"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a164bb2ceaeff4f42542bdb847c41517c78a60f5649671b2a07312b6e117549"
 
 [[package]]
 name = "humantime"
@@ -1890,26 +1917,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acdb075a845574a1fa5f09fd77e43f7747599301ea3417a9fbffdeedfc1f4a29"
-
-[[package]]
-name = "wayfarer"
-version = "0.3.0"
-dependencies = [
- "anyhow",
- "cfg-if 1.0.0",
- "chrono",
- "console_error_panic_hook",
- "cpal",
- "crossbeam",
- "eframe",
- "env_logger",
- "log",
- "midir",
- "parking_lot",
- "ringbuf",
- "web-sys",
- "wmidi",
-]
 
 [[package]]
 name = "wayland-client"

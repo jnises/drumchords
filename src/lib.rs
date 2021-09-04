@@ -15,7 +15,7 @@ mod periodic_updater;
     mod timer;
 
 mod app;
-pub use app::Wayfarer;
+pub use app::Drumchords;
 
 struct WebLogger;
 // isn't there a ready made crate for this functionality somewhere
@@ -48,7 +48,7 @@ pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
     log::set_logger(&LOGGER).expect("unable to set logger");
     log::set_max_level(log::LevelFilter::Info);
-    let app = Wayfarer::new();
+    let app = Drumchords::new();
     eframe::start_web(canvas_id, Box::new(app))
 }
 }}

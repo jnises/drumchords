@@ -8,14 +8,14 @@ mod synth;
 mod timer;
 
 mod app;
-use app::Wayfarer;
+use app::Drumchords;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     use eframe::{egui::Vec2, epi};
 
     env_logger::init();
-    let app = Box::new(Wayfarer::new());
+    let app = Box::new(Drumchords::new());
     eframe::run_native(
         app,
         epi::NativeOptions {

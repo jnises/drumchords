@@ -1,7 +1,9 @@
 use std::{f32::consts::PI, sync::Arc};
 
 use crossbeam::{atomic::AtomicCell, channel};
+use hound::{WavReader, WavSamples};
 use wmidi::MidiMessage;
+const COWBELL: &[u8] = include_bytes!("../samples/cowbell.wav");
 
 // super simple synth
 // TODO make interesting
@@ -28,10 +30,12 @@ pub struct Synth {
 
     note_event: Option<NoteEvent>,
     params: Arc<Params>,
+    cowbell: Vec<f32>,
 }
 
 impl Synth {
     pub fn new(midi_events: MidiChannel) -> Self {
+        let cowbell = WavReader::new(COWBELL).unwrap().into_samples::<i16>().map(|s| s.unwrap() as f32 / i16::MAX as f32).collect();
         Self {
             clock: 0,
             midi_events,
@@ -39,6 +43,7 @@ impl Synth {
             params: Arc::new(Params {
                 gain: 1f32.into(),
             }),
+            cowbell,
         }
     }
 
@@ -91,14 +96,13 @@ impl SynthPlayer for Synth {
             let gain = self.params.gain.load();
             let norm_vel = (u8::from(velocity) - u8::from(wmidi::U7::MIN)) as f32
                 / (u8::from(wmidi::U7::MAX) - u8::from(wmidi::U7::MIN)) as f32;
-            let freq = note.to_freq_f32();
+            let gain = gain * norm_vel;
             for frame in output.chunks_exact_mut(channels) {
-                let time = (self.clock - pressed) as f32 / sample_rate as f32;
-                let mut value = (time * freq * 2f32 * PI).sin();
-                value *= norm_vel;
+                let time_samples = self.clock - pressed;
+                let mut value = self.cowbell.get(time_samples as usize).copied().unwrap_or(0f32);
                 value *= gain;
                 // fade in to avoid pop
-                value *= (time * 1000.).min(1.);
+                // value *= (time * 1000.).min(1.);
                 // fade out
                 if let Some(released) = released {
                     let released_time = (self.clock - released) as f32 / sample_rate as f32;

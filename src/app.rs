@@ -12,7 +12,7 @@ use eframe::{
 use parking_lot::Mutex;
 use std::{collections::VecDeque, sync::Arc};
 
-const NAME: &str = "Wayfärer";
+const NAME: &str = "Drumchords";
 const VIS_SIZE: usize = 512;
 
 pub struct Data {
@@ -26,12 +26,12 @@ pub struct Data {
     periodic_updater: Option<PeriodicUpdater>,
 }
 
-pub enum Wayfarer {
+pub enum Drumchords {
     Initialized(Data),
     Uninitialized,
 }    
 
-impl Wayfarer {
+impl Drumchords {
     pub fn init(&mut self) {
         let (midi_tx, midi_rx) = channel::bounded(256);
         let midi = MidiReader::new(midi_tx.clone());
@@ -64,7 +64,7 @@ impl Wayfarer {
     }
 }
 
-impl App for Wayfarer {
+impl App for Drumchords {
     fn name(&self) -> &str {
         NAME
     }
