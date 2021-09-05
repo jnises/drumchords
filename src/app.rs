@@ -1,7 +1,7 @@
 use crate::keyboard::OnScreenKeyboard;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
-use crate::synth::{Params, Synth};
+use crate::synth::{Params, Synth, PATTERN_LENGTH};
 use crate::{audio::AudioManager, synth::Feedback};
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
@@ -218,14 +218,14 @@ impl App for Drumchords {
                             ui.vertical(|ui| {
                                 for atomic_pattern in feedback.patterns.iter() {
                                     let pattern = atomic_pattern.load();
-                                    let cell_size = 8f32;
+                                    let cell_size = 4f32;
                                     let (_id, rect) =
-                                        ui.allocate_space(vec2(cell_size * 24f32, cell_size));
+                                        ui.allocate_space(vec2(cell_size * PATTERN_LENGTH as f32, cell_size));
                                     let painter = ui.painter_at(rect);
                                     let mut r = rect;
                                     r.set_right(r.left() + cell_size);
-                                    for i in 0..24 {
-                                        let filled = pattern >> (23 - i) & 1 != 0;
+                                    for i in 0..PATTERN_LENGTH {
+                                        let filled = pattern >> (PATTERN_LENGTH - 1 - i) & 1 != 0;
                                         let color = if filled { Color32::WHITE } else { Color32::BLACK };
                                         painter.rect_filled(r, 1f32, color);
                                         r = r.translate(vec2(cell_size, 0f32));
