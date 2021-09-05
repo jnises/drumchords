@@ -5,7 +5,10 @@ use crate::synth::{Params, Synth, PATTERN_LENGTH};
 use crate::{audio::AudioManager, synth::Feedback};
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
-use eframe::{egui::{self, Color32, vec2}, epi::{self, App}};
+use eframe::{
+    egui::{self, vec2, Color32},
+    epi::{self, App},
+};
 use parking_lot::Mutex;
 use std::{collections::VecDeque, sync::Arc};
 
@@ -216,6 +219,7 @@ impl App for Drumchords {
                         ui.horizontal(|ui| {
                             ui.label("patterns:");
                             ui.vertical(|ui| {
+                                let beat = feedback.beat.load();
                                 for atomic_pattern in feedback.patterns.iter() {
                                     let pattern = atomic_pattern.load();
                                     let cell_width = 4f32;
@@ -227,7 +231,7 @@ impl App for Drumchords {
                                     r.set_right(r.left() + cell_width);
                                     for i in 0..PATTERN_LENGTH {
                                         let filled = pattern >> (PATTERN_LENGTH - 1 - i) & 1 != 0;
-                                        let color = if filled { Color32::WHITE } else { Color32::BLACK };
+                                        let color = if beat == i { Color32::RED } else { if filled { Color32::WHITE } else { Color32::BLACK }};
                                         painter.rect_filled(r, 1f32, color);
                                         r = r.translate(vec2(cell_width, 0f32));
                                     }

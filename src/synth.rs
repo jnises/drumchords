@@ -29,6 +29,7 @@ pub const PATTERN_LENGTH: u64 = 64;
 pub struct Feedback {
     // TODO can we use some doublebuffered thing if we want things larger than can be atomic?
     pub patterns: [AtomicCell<u64>; 2],
+    pub beat: AtomicCell<u64>,
 }
 
 #[derive(Clone)]
@@ -68,6 +69,7 @@ impl Synth {
             params: Arc::new(Params { gain: 1f32.into() }),
             feedback: Arc::new(Feedback {
                 patterns: [0.into(), 0.into()],
+                beat: 0.into(),
             }),
             samples: [hihat, snare],
             // not your normal bpm
@@ -148,11 +150,12 @@ impl SynthPlayer for Synth {
         for frame in output.chunks_exact_mut(channels) {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
+                let beatmod = beat % PATTERN_LENGTH;
+                let prevbeat = (beat + PATTERN_LENGTH - 1) % PATTERN_LENGTH;
+                self.feedback.beat.store(beatmod);
                 for (chanid, channel) in self.channels.iter_mut().enumerate() {
                     // TODO zip instead
                     let p = patterns[chanid];
-                    let beatmod = beat % PATTERN_LENGTH;
-                    let prevbeat = (beat + PATTERN_LENGTH - 1) % PATTERN_LENGTH;
                     if p >> (PATTERN_LENGTH - 1) - beatmod & 1 != 0 && p >> (PATTERN_LENGTH - 1) - prevbeat & 1 == 0 {
                         *channel = Some(Sample {
                             start_clock: self.clock,
