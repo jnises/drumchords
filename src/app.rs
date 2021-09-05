@@ -1,12 +1,12 @@
-use crate::audio::AudioManager;
 use crate::keyboard::OnScreenKeyboard;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
-use crate::synth::{Synth, Params};
+use crate::synth::{Params, Synth, PATTERN_LENGTH};
+use crate::{audio::AudioManager, synth::Feedback};
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
 use eframe::{
-    egui,
+    egui::{self, vec2, Color32},
     epi::{self, App},
 };
 use parking_lot::Mutex;
@@ -23,13 +23,14 @@ pub struct Data {
     forced_buffer_size: Option<u32>,
     left_vis_buffer: VecDeque<f32>,
     synth_params: Arc<Params>,
+    synth_feedback: Arc<Feedback>,
     periodic_updater: Option<PeriodicUpdater>,
 }
 
 pub enum Drumchords {
     Initialized(Data),
     Uninitialized,
-}    
+}
 
 impl Drumchords {
     pub fn init(&mut self) {
@@ -38,6 +39,7 @@ impl Drumchords {
         let synth = Synth::new(midi_rx);
         let status_text = Arc::new(Mutex::new("".to_string()));
         let synth_params = synth.get_params();
+        let synth_feedback = synth.get_feedback();
         let status_clone = status_text.clone();
         let audio = AudioManager::new(synth, move |e| {
             *status_clone.lock() = e;
@@ -50,6 +52,7 @@ impl Drumchords {
             forced_buffer_size: None,
             left_vis_buffer: VecDeque::with_capacity(VIS_SIZE * 2),
             synth_params,
+            synth_feedback,
             periodic_updater: None,
         });
     }
@@ -101,6 +104,7 @@ impl App for Drumchords {
                     let status_text = &data.status_text;
                     let keyboard = &mut data.keyboard;
                     let params = data.synth_params.as_ref();
+                    let feedback = data.synth_feedback.as_ref();
                     ui.group(|ui| {
                         ui.horizontal(|ui| {
                             ui.label("midi:");
@@ -211,10 +215,35 @@ impl App for Drumchords {
                             params.gain.store(gain);
                         });
                     });
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("patterns:");
+                            ui.vertical(|ui| {
+                                let beat = feedback.beat.load();
+                                for atomic_pattern in feedback.patterns.iter() {
+                                    let pattern = atomic_pattern.load();
+                                    let cell_width = 4f32;
+                                    let cell_height = 8f32;
+                                    let (_id, rect) =
+                                        ui.allocate_space(vec2(cell_width * PATTERN_LENGTH as f32, cell_height));
+                                    let painter = ui.painter_at(rect);
+                                    let mut r = rect;
+                                    r.set_right(r.left() + cell_width);
+                                    for i in 0..PATTERN_LENGTH {
+                                        let filled = pattern >> (PATTERN_LENGTH - 1 - i) & 1 != 0;
+                                        let color = if beat == i { Color32::RED } else { if filled { Color32::WHITE } else { Color32::BLACK }};
+                                        painter.rect_filled(r, 1f32, color);
+                                        r = r.translate(vec2(cell_width, 0f32));
+                                    }
+                                }
+                            });
+                        });
+                    });
                     // put onscreen keyboard at bottom of window
-                    let height = ui.available_size().y;
-                    ui.add_space(height - 20f32);
-                    keyboard.show(ui);
+                    // let height = ui.available_size().y;
+                    // ui.add_space(height - 20f32);
+                    // keyboard.show(ui);
+                    ui.label("C0 to B1. No sharps. First octave hihat. Second snare. Hold down multiple keys.");
                 }
             }
         });

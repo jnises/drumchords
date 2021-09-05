@@ -1,12 +1,13 @@
-use std::{f32::consts::PI, sync::Arc};
+use std::sync::Arc;
 
 use crossbeam::{atomic::AtomicCell, channel};
-use hound::{WavReader, WavSamples};
+use fixedbitset::FixedBitSet;
+use hound::WavReader;
+use num::Integer;
 use wmidi::MidiMessage;
-const COWBELL: &[u8] = include_bytes!("../samples/cowbell.wav");
 
-// super simple synth
-// TODO make interesting
+const HIHAT: &[u8] = include_bytes!("../samples/hihat.wav");
+const SNARE: &[u8] = include_bytes!("../samples/snare.wav");
 
 type MidiChannel = channel::Receiver<MidiMessage<'static>>;
 
@@ -23,32 +24,66 @@ pub struct Params {
     pub gain: AtomicCell<f32>,
 }
 
+pub const PATTERN_LENGTH: u64 = 64;
+
+pub struct Feedback {
+    // TODO can we use some doublebuffered thing if we want things larger than can be atomic?
+    pub patterns: [AtomicCell<u64>; 2],
+    pub beat: AtomicCell<u64>,
+}
+
+#[derive(Clone)]
+struct Sample {
+    start_clock: u64,
+}
+
 #[derive(Clone)]
 pub struct Synth {
     clock: u64,
     midi_events: MidiChannel,
 
-    note_event: Option<NoteEvent>,
+    notes_held: FixedBitSet,
     params: Arc<Params>,
-    cowbell: Vec<f32>,
+    feedback: Arc<Feedback>,
+    samples: [Vec<f32>; 2],
+    bpm: u64,
+    channels: [Option<Sample>; 2],
 }
 
 impl Synth {
     pub fn new(midi_events: MidiChannel) -> Self {
-        let cowbell = WavReader::new(COWBELL).unwrap().into_samples::<i16>().map(|s| s.unwrap() as f32 / i16::MAX as f32).collect();
+        let hihat = WavReader::new(HIHAT)
+            .unwrap()
+            .into_samples::<i16>()
+            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
+            .collect();
+        let snare = WavReader::new(SNARE)
+            .unwrap()
+            .into_samples::<i16>()
+            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
+            .collect();
         Self {
             clock: 0,
             midi_events,
-            note_event: None,
-            params: Arc::new(Params {
-                gain: 1f32.into(),
+            notes_held: FixedBitSet::with_capacity(127),
+            params: Arc::new(Params { gain: 1f32.into() }),
+            feedback: Arc::new(Feedback {
+                patterns: [0.into(), 0.into()],
+                beat: 0.into(),
             }),
-            cowbell,
+            samples: [hihat, snare],
+            // not your normal bpm
+            bpm: 120 * 16,
+            channels: [None, None],
         }
     }
 
     pub fn get_params(&self) -> Arc<Params> {
         self.params.clone()
+    }
+
+    pub fn get_feedback(&self) -> Arc<Feedback> {
+        self.feedback.clone()
     }
 }
 
@@ -61,62 +96,90 @@ impl SynthPlayer for Synth {
         // pump midi messages
         for message in self.midi_events.try_iter() {
             match message {
-                wmidi::MidiMessage::NoteOn(_, note, velocity) => {
-                    self.note_event = Some(NoteEvent {
-                        note,
-                        velocity,
-                        pressed: self.clock,
-                        released: None,
-                    });
+                wmidi::MidiMessage::NoteOn(_, note, _) => {
+                    self.notes_held.put(note as usize);
                 }
                 wmidi::MidiMessage::NoteOff(_, note, _) => {
-                    if let Some(NoteEvent {
-                        note: held_note,
-                        ref mut released,
-                        ..
-                    }) = self.note_event
-                    {
-                        if note == held_note {
-                            *released = Some(self.clock);
-                        }
-                    }
+                    self.notes_held.set(note as usize, false);
                 }
                 _ => {}
             }
         }
 
-        // produce sound
-        if let Some(NoteEvent {
-            note,
-            velocity,
-            pressed,
-            released,
-        }) = self.note_event
-        {
-            let gain = self.params.gain.load();
-            let norm_vel = (u8::from(velocity) - u8::from(wmidi::U7::MIN)) as f32
-                / (u8::from(wmidi::U7::MAX) - u8::from(wmidi::U7::MIN)) as f32;
-            let gain = gain * norm_vel;
-            for frame in output.chunks_exact_mut(channels) {
-                let time_samples = self.clock - pressed;
-                let mut value = self.cowbell.get(time_samples as usize).copied().unwrap_or(0f32);
-                value *= gain;
-                // fade in to avoid pop
-                // value *= (time * 1000.).min(1.);
-                // fade out
-                if let Some(released) = released {
-                    let released_time = (self.clock - released) as f32 / sample_rate as f32;
-                    value *= (1. - released_time * 1000.).max(0.);
+        // TODO only do this on demand?
+        let mut patterns = [0; 2];
+        let held = &self.notes_held;
+        for (pattid, pattern) in patterns.iter_mut().enumerate() {
+            for beat in 0..PATTERN_LENGTH {
+                let mut a = false;
+                for n in (pattid * 12)..((pattid + 1) * 12) {
+                    if held[n] {
+                        let nmod = n as u64 % 12;
+                        // update this depending on the pattern length
+                        let div = match nmod {
+                            0 => 64,
+                            2 => 32,
+                            4 => 16,
+                            5 => 8,
+                            7 => 4,
+                            9 => 2,
+                            11 => 1,
+                            _ => break,
+                        };
+                        let c = beat / div & 1 == 0;
+                        a = a != c;
+                    }
                 }
-                // TODO also avoid popping when switching between notes
-                for sample in frame.iter_mut() {
-                    *sample = value;
+                if a {
+                    *pattern |= 1 << (PATTERN_LENGTH - 1 - beat);
                 }
-                self.clock += 1;
             }
-        } else {
-            output.fill(0f32);
-            self.clock += (output.len() / channels) as u64;
+        }
+        for pattern in patterns.iter_mut() {
+            let rot = *pattern >> 1 | *pattern << (PATTERN_LENGTH - 1);
+            *pattern &= !rot;
+        }
+
+        for (&src, dst) in patterns.iter().zip(self.feedback.patterns.iter()) {
+            dst.store(src);
+        }
+
+        // produce sound
+        let frames_per_beat = sample_rate as u64 * 60 / self.bpm;
+        let gain = self.params.gain.load();
+        for frame in output.chunks_exact_mut(channels) {
+            let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
+            if beat_frame == 0 {
+                let beatmod = beat % PATTERN_LENGTH;
+                let prevbeat = (beat + PATTERN_LENGTH - 1) % PATTERN_LENGTH;
+                self.feedback.beat.store(beatmod);
+                for (chanid, channel) in self.channels.iter_mut().enumerate() {
+                    // TODO zip instead
+                    let p = patterns[chanid];
+                    if p >> (PATTERN_LENGTH - 1) - beatmod & 1 != 0 && p >> (PATTERN_LENGTH - 1) - prevbeat & 1 == 0 {
+                        *channel = Some(Sample {
+                            start_clock: self.clock,
+                        });
+                    }
+                }
+            }
+
+            let mut value = 0f32;
+            for (ci, c) in self.channels.iter_mut().enumerate() {
+                if let Some(Sample { start_clock }) = *c {
+                    let time_sample = self.clock - start_clock;
+                    if let Some(&v) = self.samples[ci].get(time_sample as usize) {
+                        value += v;
+                    } else {
+                        *c = None;
+                    }
+                }
+            }
+            value *= gain;
+            for sample in frame.iter_mut() {
+                *sample = value;
+            }
+            self.clock += 1;
         }
     }
 }
