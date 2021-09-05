@@ -1,9 +1,8 @@
-use std::{collections::HashSet, f32::consts::PI, sync::Arc};
+use std::sync::Arc;
 
-use arrayvec::ArrayVec;
 use crossbeam::{atomic::AtomicCell, channel};
 use fixedbitset::FixedBitSet;
-use hound::{WavReader, WavSamples};
+use hound::WavReader;
 use num::Integer;
 use wmidi::MidiMessage;
 
