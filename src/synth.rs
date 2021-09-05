@@ -24,6 +24,11 @@ pub struct Params {
     pub gain: AtomicCell<f32>,
 }
 
+pub struct Feedback {
+    // TODO can we use some doublebuffered thing if we want things larger than can be atomic?
+    pub patterns: [AtomicCell<u32>; 2],
+}
+
 #[derive(Clone)]
 struct Sample {
     start_clock: u64,
@@ -36,6 +41,7 @@ pub struct Synth {
 
     notes_held: FixedBitSet,
     params: Arc<Params>,
+    feedback: Arc<Feedback>,
     cowbell: Vec<f32>,
     bpm: u64,
     channels: [Option<Sample>; 2],
@@ -53,15 +59,22 @@ impl Synth {
             midi_events,
             notes_held: FixedBitSet::with_capacity(127),
             params: Arc::new(Params { gain: 1f32.into() }),
+            feedback: Arc::new(Feedback {
+                patterns: [0.into(), 0.into()],
+            }),
             cowbell,
             // not your normal bpm
-            bpm: 240,
+            bpm: 128 * 3 * 2,
             channels: [None, None],
         }
     }
 
     pub fn get_params(&self) -> Arc<Params> {
         self.params.clone()
+    }
+
+    pub fn get_feedback(&self) -> Arc<Feedback> {
+        self.feedback.clone()
     }
 }
 
@@ -84,6 +97,43 @@ impl SynthPlayer for Synth {
             }
         }
 
+        // TODO only do this on demand?
+        let mut patterns = [0; 2];
+        let held = &self.notes_held;
+        for (pattid, pattern) in patterns.iter_mut().enumerate() {
+            for beat in 0..24 {
+                let mut a = false;
+                for n in (pattid * 12)..((pattid + 1) * 12) {
+                    if held[n] {
+                        let nmod = n as u64 % 12;
+                        let div = match nmod {
+                            0 => 24,
+                            2 => 12,
+                            4 => 6,
+                            5 => 4,
+                            7 => 3,
+                            9 => 2,
+                            11 => 1,
+                            _ => break,
+                        };
+                        let c = beat / div & 1 == 0;
+                        a = a != c;
+                    }
+                }
+                if a {
+                    *pattern |= 1 << (23 - beat);
+                }
+            }
+        }
+        for pattern in patterns.iter_mut() {
+            let rot = *pattern >> 1 | *pattern << 23;
+            *pattern &= !rot;
+        }
+
+        for (&src, dst) in patterns.iter().zip(self.feedback.patterns.iter()) {
+            dst.store(src);
+        }
+
         // produce sound
         let frames_per_beat = sample_rate as u64 * 60 / self.bpm;
         let gain = self.params.gain.load();
@@ -91,20 +141,11 @@ impl SynthPlayer for Synth {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
                 for (chanid, channel) in self.channels.iter_mut().enumerate() {
-                    let held = &self.notes_held;
-                    let f = |b| {
-                        let mut a = false;
-                        for n in (chanid * 12)..((chanid + 1) * 12) {
-                            if held[n] {
-                                let c = b & n as u64 != 0;
-                                a = a != c;
-                            }
-                        }
-                        a
-                    };
+                    // TODO zip instead
+                    let p = patterns[chanid];
                     let beatmod = beat % 24;
                     let prevbeat = (beat + 23) % 24;
-                    if f(beatmod) && !f(prevbeat) {
+                    if p >> 23 - beatmod & 1 != 0 && p >> 23 - prevbeat & 1 == 0 {
                         *channel = Some(Sample {
                             start_clock: self.clock,
                         });
