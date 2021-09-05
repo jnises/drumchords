@@ -235,9 +235,10 @@ impl App for Drumchords {
                         });
                     });
                     // put onscreen keyboard at bottom of window
-                    let height = ui.available_size().y;
-                    ui.add_space(height - 20f32);
-                    keyboard.show(ui);
+                    // let height = ui.available_size().y;
+                    // ui.add_space(height - 20f32);
+                    // keyboard.show(ui);
+                    ui.label("C0 to B1. No sharps. First octave hihat. Second snare. Hold down multiple keys.");
                 }
             }
         });
