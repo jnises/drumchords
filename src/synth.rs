@@ -38,7 +38,7 @@ pub struct Synth {
     params: Arc<Params>,
     cowbell: Vec<f32>,
     bpm: u64,
-    playing: ArrayVec<Sample, 8>,
+    channels: [Option<Sample>; 2],
 }
 
 impl Synth {
@@ -54,8 +54,9 @@ impl Synth {
             notes_held: FixedBitSet::with_capacity(127),
             params: Arc::new(Params { gain: 1f32.into() }),
             cowbell,
-            bpm: 120,
-            playing: ArrayVec::new(),
+            // not your normal bpm
+            bpm: 240,
+            channels: [None, None],
         }
     }
 
@@ -73,7 +74,7 @@ impl SynthPlayer for Synth {
         // pump midi messages
         for message in self.midi_events.try_iter() {
             match message {
-                wmidi::MidiMessage::NoteOn(_, note, velocity) => {
+                wmidi::MidiMessage::NoteOn(_, note, _) => {
                     self.notes_held.put(note as usize);
                 }
                 wmidi::MidiMessage::NoteOff(_, note, _) => {
@@ -89,44 +90,40 @@ impl SynthPlayer for Synth {
         for frame in output.chunks_exact_mut(channels) {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
-
-            }
-            // TODO make sample player
-            
-            let mut value = 0f32;
-            for i in 0.. {
-                if i >= self.playing.len() {
-                    break
+                for (chanid, channel) in self.channels.iter_mut().enumerate() {
+                    let held = &self.notes_held;
+                    let f = |b| {
+                        let mut a = false;
+                        for n in (chanid * 12)..((chanid + 1) * 12) {
+                            if held[n] {
+                                let c = b & n as u64 != 0;
+                                a = a != c;
+                            }
+                        }
+                        a
+                    };
+                    let beatmod = beat % 24;
+                    let prevbeat = (beat + 23) % 24;
+                    if f(beatmod) && !f(prevbeat) {
+                        *channel = Some(Sample {
+                            start_clock: self.clock,
+                        });
+                    }
                 }
-                let start_clock = self.playing[i].start_clock;
-                asdf
             }
-            let mut samplei = 0;
-            while samplei < self.playing.len() {
 
+            let mut value = 0f32;
+            for c in self.channels.iter_mut() {
+                if let Some(Sample { start_clock }) = *c {
+                    let time_sample = self.clock - start_clock;
+                    if let Some(&v) = self.cowbell.get(time_sample as usize) {
+                        value += v;
+                    } else {
+                        *c = None;
+                    }
+                }
             }
-            let beat_frame = self.clock % frames_per_beat;
-            if beat_frame == 0 {
-
-            }
-            let time = self.clock as f64 / sample_rate as f64;
-            // TODO on the frame where a beat starts. 
-            let beat = time * self.bpm as f64;
-            let time_samples = self.clock - pressed;
-            let mut value = self
-                .cowbell
-                .get(time_samples as usize)
-                .copied()
-                .unwrap_or(0f32);
             value *= gain;
-            // fade in to avoid pop
-            // value *= (time * 1000.).min(1.);
-            // fade out
-            if let Some(released) = released {
-                let released_time = (self.clock - released) as f32 / sample_rate as f32;
-                value *= (1. - released_time * 1000.).max(0.);
-            }
-            // TODO also avoid popping when switching between notes
             for sample in frame.iter_mut() {
                 *sample = value;
             }
