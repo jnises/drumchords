@@ -7,7 +7,8 @@ use hound::{WavReader, WavSamples};
 use num::Integer;
 use wmidi::MidiMessage;
 
-const COWBELL: &[u8] = include_bytes!("../samples/cowbell.wav");
+const HIHAT: &[u8] = include_bytes!("../samples/hihat.wav");
+const SNARE: &[u8] = include_bytes!("../samples/snare.wav");
 
 type MidiChannel = channel::Receiver<MidiMessage<'static>>;
 
@@ -42,14 +43,19 @@ pub struct Synth {
     notes_held: FixedBitSet,
     params: Arc<Params>,
     feedback: Arc<Feedback>,
-    cowbell: Vec<f32>,
+    samples: [Vec<f32>; 2],
     bpm: u64,
     channels: [Option<Sample>; 2],
 }
 
 impl Synth {
     pub fn new(midi_events: MidiChannel) -> Self {
-        let cowbell = WavReader::new(COWBELL)
+        let hihat = WavReader::new(HIHAT)
+            .unwrap()
+            .into_samples::<i16>()
+            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
+            .collect();
+        let snare = WavReader::new(SNARE)
             .unwrap()
             .into_samples::<i16>()
             .map(|s| s.unwrap() as f32 / i16::MAX as f32)
@@ -62,7 +68,7 @@ impl Synth {
             feedback: Arc::new(Feedback {
                 patterns: [0.into(), 0.into()],
             }),
-            cowbell,
+            samples: [hihat, snare],
             // not your normal bpm
             bpm: 128 * 3 * 2,
             channels: [None, None],
@@ -154,10 +160,10 @@ impl SynthPlayer for Synth {
             }
 
             let mut value = 0f32;
-            for c in self.channels.iter_mut() {
+            for (ci, c) in self.channels.iter_mut().enumerate() {
                 if let Some(Sample { start_clock }) = *c {
                     let time_sample = self.clock - start_clock;
-                    if let Some(&v) = self.cowbell.get(time_sample as usize) {
+                    if let Some(&v) = self.samples[ci].get(time_sample as usize) {
                         value += v;
                     } else {
                         *c = None;
