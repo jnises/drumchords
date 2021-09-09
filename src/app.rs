@@ -219,7 +219,6 @@ impl App for Drumchords {
                         ui.horizontal(|ui| {
                             ui.label("patterns:");
                             ui.vertical(|ui| {
-                                let beat = feedback.beat.load();
                                 for atomic_pattern in feedback.patterns.iter() {
                                     let pattern = atomic_pattern.load();
                                     let cell_width = 4f32;
@@ -231,7 +230,7 @@ impl App for Drumchords {
                                     r.set_right(r.left() + cell_width);
                                     for i in 0..PATTERN_LENGTH {
                                         let filled = pattern >> (PATTERN_LENGTH - 1 - i) & 1 != 0;
-                                        let color = if beat == i { Color32::RED } else { if filled { Color32::WHITE } else { Color32::BLACK }};
+                                        let color = if filled { if i == 0 { Color32::RED } else { Color32::WHITE } } else { Color32::BLACK };
                                         painter.rect_filled(r, 1f32, color);
                                         r = r.translate(vec2(cell_width, 0f32));
                                     }
@@ -243,7 +242,7 @@ impl App for Drumchords {
                     // let height = ui.available_size().y;
                     // ui.add_space(height - 20f32);
                     // keyboard.show(ui);
-                    ui.label("C0 to B1. No sharps. First octave hihat. Second snare. Hold down multiple keys.");
+                    ui.label("Hold down multiple keys.");
                 }
             }
         });
