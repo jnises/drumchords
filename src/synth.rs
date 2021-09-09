@@ -151,12 +151,11 @@ impl SynthPlayer for Synth {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
                 let beatmod = beat % PATTERN_LENGTH;
-                let prevbeat = (beat + PATTERN_LENGTH - 1) % PATTERN_LENGTH;
                 self.feedback.beat.store(beatmod);
                 for (chanid, channel) in self.channels.iter_mut().enumerate() {
                     // TODO zip instead
                     let p = patterns[chanid];
-                    if p >> (PATTERN_LENGTH - 1) - beatmod & 1 != 0 && p >> (PATTERN_LENGTH - 1) - prevbeat & 1 == 0 {
+                    if p >> (PATTERN_LENGTH - 1) - beatmod & 1 != 0 {
                         *channel = Some(Sample {
                             start_clock: self.clock,
                         });
