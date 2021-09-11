@@ -18,7 +18,7 @@ mod app;
 pub use app::Drumchords;
 
 struct WebLogger;
-// isn't there a ready made crate for this functionality somewhere
+// isn't there a ready made crate for this functionality somewhere?
 impl log::Log for WebLogger {
     fn enabled(&self, metadata: &Metadata<'_>) -> bool {
         metadata.level() <= Level::Info
