@@ -90,6 +90,14 @@ impl App for Drumchords {
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+                            // put onscreen keyboard at bottom of window
+//                    let height = ui.available_size().y;
+  //                  ui.add_space(height - 20f32);
+            if let Self::Initialized(data) = self {
+                data.keyboard.show(ui);
+            }
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading(NAME);
             match self {
