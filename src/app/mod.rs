@@ -241,7 +241,6 @@ impl App for Drumchords {
                         });
                     });
                     ui.group(|ui| {
-                        //ui.horizontal(|ui| {
                         ui.label("channels:");
                         ui.vertical(|ui| {
                             for (
@@ -294,13 +293,7 @@ impl App for Drumchords {
                                 });
                             }
                         });
-                        //});
                     });
-                    // put onscreen keyboard at bottom of window
-                    // let height = ui.available_size().y;
-                    // ui.add_space(height - 20f32);
-                    // keyboard.show(ui);
-                    ui.label("Hold down multiple keys.");
                 }
             }
         });
