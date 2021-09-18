@@ -2,12 +2,15 @@ mod pattern_designer;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
 use crate::synth::{ChannelFeedback, Params, Synth, PATTERN_LENGTH};
-use crate::{audio::AudioManager, synth::Feedback};
-use crate::{keyboard::OnScreenKeyboard, synth};
+use crate::{
+    audio::AudioManager,
+    synth::{self, Feedback},
+};
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
+use eframe::egui::{emath, pos2, Rect, Stroke};
 use eframe::{
-    egui::{self, vec2, Color32},
+    egui::{self, epaint, vec2, Color32},
     epi::{self, App},
 };
 use parking_lot::Mutex;
@@ -28,7 +31,6 @@ pub struct Data {
     audio: AudioManager<Synth>,
     midi: Arc<MidiReader>,
     status_text: Arc<Mutex<String>>,
-    keyboard: OnScreenKeyboard,
     forced_buffer_size: Option<u32>,
     left_vis_buffer: VecDeque<f32>,
     synth_params: Arc<Params>,
@@ -58,7 +60,6 @@ impl Drumchords {
             audio,
             midi,
             status_text,
-            keyboard: OnScreenKeyboard::new(midi_tx),
             forced_buffer_size: None,
             left_vis_buffer: VecDeque::with_capacity(VIS_SIZE * 2),
             synth_params,
@@ -213,23 +214,21 @@ impl App for Drumchords {
                         }
                         prev = Some(value);
                     }
-                    ui.add(
-                        egui::plot::Plot::new("waveform")
-                            .include_y(-1.)
-                            .include_y(1.)
-                            .include_x(0.)
-                            .include_x((VIS_SIZE / 2) as f32)
-                            .line(egui::plot::Line::new(egui::plot::Values::from_values_iter(
-                                it.take(VIS_SIZE / 2)
-                                    .enumerate()
-                                    .map(|(x, y)| egui::plot::Value {
-                                        x: x as f64,
-                                        y: y as f64,
-                                    }),
-                            )))
-                            .width(ui.available_width().min(300.))
-                            .view_aspect(2.0),
+                    let plot_width = ui.available_width().min(300.);
+                    let (_, rect) = ui.allocate_space(vec2(plot_width, plot_width * 0.5));
+                    let p = ui.painter();
+                    p.rect_filled(rect, 10f32, Color32::BLACK);
+                    let to_rect = emath::RectTransform::from_to(
+                        Rect::from_x_y_ranges(0.0..=(VIS_SIZE / 2) as f32, -1.0..=1.0),
+                        rect,
                     );
+                    p.add(epaint::Shape::line(
+                        it.take(VIS_SIZE / 2)
+                            .enumerate()
+                            .map(|(x, y)| to_rect * pos2(x as f32, y))
+                            .collect(),
+                        Stroke::new(1f32, Color32::GRAY),
+                    ));
                     if left_vis_buffer.len() > VIS_SIZE {
                         drop(left_vis_buffer.drain(0..left_vis_buffer.len() - VIS_SIZE));
                     }
