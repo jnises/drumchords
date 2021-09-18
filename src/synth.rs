@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crossbeam::{atomic::AtomicCell, channel};
 use hound::WavReader;
+use itertools::multizip;
 use num::Integer;
 use wmidi::MidiMessage;
 
@@ -137,18 +138,26 @@ impl SynthPlayer for Synth {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
                 for (
-                    Channel { sample, selected },
+                    Channel {
+                        sample,
+                        ref selected,
+                    },
                     ChannelFeedback {
                         pattern: feedback_pattern,
                         ..
                     },
-                ) in self.channels.iter_mut().zip(self.feedback.channels.iter())
-                {
+                    locked,
+                ) in multizip((
+                    self.channels.iter_mut(),
+                    self.feedback.channels.iter(),
+                    self.params.locked.iter(),
+                )) {
+                    let selected = selected | locked.load();
                     let mut pattern = 0u64;
                     for b in 0..=PATTERN_LENGTH {
                         let mut a = false;
                         for n in 0..NOTES_PER_CHANNEL {
-                            if *selected & 1 << n != 0 {
+                            if selected & 1 << n != 0 {
                                 let nmod = n as u64 % 12;
                                 // TODO use different divisors. n2, fib?
                                 let div = nmod + 1;

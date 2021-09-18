@@ -245,7 +245,14 @@ impl App for Drumchords {
                         //ui.horizontal(|ui| {
                         ui.label("channels:");
                         ui.vertical(|ui| {
-                            for ChannelFeedback { pattern, selected } in feedback.channels.iter() {
+                            for (
+                                ChannelFeedback {
+                                    pattern,
+                                    selected: feedback_selected,
+                                },
+                                locked,
+                            ) in feedback.channels.iter().zip(params.locked.iter())
+                            {
                                 ui.horizontal(|ui| {
                                     {
                                         let pattern = pattern.load();
@@ -276,9 +283,15 @@ impl App for Drumchords {
                                             r = r.translate(vec2(cell_width + 1., 0f32));
                                         }
                                     }
-                                    // TODO put the selected pattern back as parameter
-                                    let mut selected = selected.load();
-                                    pattern_designer(ui, &mut selected, synth::NOTES_PER_CHANNEL);
+                                    let mut fg_pattern = locked.load();
+                                    let bg_pattern = feedback_selected.load();
+                                    pattern_designer(
+                                        ui,
+                                        &mut fg_pattern,
+                                        bg_pattern,
+                                        synth::NOTES_PER_CHANNEL,
+                                    );
+                                    locked.store(fg_pattern);
                                 });
                             }
                         });
