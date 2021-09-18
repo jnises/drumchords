@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use crossbeam::{atomic::AtomicCell, channel};
-use fixedbitset::FixedBitSet;
 use hound::WavReader;
 use num::Integer;
 use wmidi::MidiMessage;
 
 const HIHAT: &[u8] = include_bytes!("../samples/hihat.wav");
 //const SNARE: &[u8] = include_bytes!("../samples/snare.wav");
-// TOOD should it be 11?
 const NUM_CHANNELS: usize = 11;
 pub const PATTERN_LENGTH: u64 = 32;
+const NUM_NOTES: usize = 128;
+pub const NOTES_PER_CHANNEL: u64 = 12;
 
 type MidiChannel = channel::Receiver<MidiMessage<'static>>;
 
@@ -25,11 +25,31 @@ struct NoteEvent {
 // TODO handle params using messages instead?
 pub struct Params {
     pub gain: AtomicCell<f32>,
+    pub locked: [AtomicCell<u16>; NUM_CHANNELS],
+}
+
+#[derive(Default)]
+pub struct ChannelFeedback {
+    pub pattern: AtomicCell<u32>,
+    pub selected: AtomicCell<u16>,
 }
 
 pub struct Feedback {
-    // TODO can we use some doublebuffered thing if we want things larger than can be atomic?
-    pub patterns: [AtomicCell<u32>; NUM_CHANNELS],
+    pub channels: [ChannelFeedback; NUM_CHANNELS],
+}
+
+impl Feedback {
+    fn new() -> Self {
+        Self {
+            channels: Default::default(),
+        }
+    }
+}
+
+#[derive(Clone, Default)]
+struct Channel {
+    sample: Option<Sample>,
+    selected: u16,
 }
 
 #[derive(Clone)]
@@ -42,12 +62,11 @@ pub struct Synth {
     clock: u64,
     midi_events: MidiChannel,
 
-    notes_held: FixedBitSet,
     params: Arc<Params>,
     feedback: Arc<Feedback>,
     samples: [Vec<f32>; 1],
     bpm: u64,
-    channels: [Option<Sample>; NUM_CHANNELS],
+    channels: [Channel; NUM_CHANNELS],
 }
 
 impl Synth {
@@ -65,12 +84,12 @@ impl Synth {
         Self {
             clock: 0,
             midi_events,
-            notes_held: FixedBitSet::with_capacity(128), // TODO Note max?
-            params: Arc::new(Params { gain: 1f32.into() }),
-            feedback: Arc::new(Feedback {
-                patterns: Default::default(),
+            params: Arc::new(Params {
+                gain: 1f32.into(),
+                locked: Default::default(),
             }),
-            samples: [hihat],//, snare],
+            feedback: Arc::new(Feedback::new()),
+            samples: [hihat], //, snare],
             // not your normal bpm
             bpm: 120 * 4,
             channels: Default::default(),
@@ -96,33 +115,40 @@ impl SynthPlayer for Synth {
         for message in self.midi_events.try_iter() {
             match message {
                 wmidi::MidiMessage::NoteOn(_, note, _) => {
-                    self.notes_held.put(note as usize);
+                    let (quot, rem) = (note as usize).div_mod_floor(&(NOTES_PER_CHANNEL as usize));
+                    let selected = &mut self.channels[quot].selected;
+                    *selected |= 1 << rem;
+                    self.feedback.channels[quot].selected.store(*selected);
                 }
                 wmidi::MidiMessage::NoteOff(_, note, _) => {
-                    self.notes_held.set(note as usize, false);
+                    let (quot, rem) = (note as usize).div_mod_floor(&(NOTES_PER_CHANNEL as usize));
+                    let selected = &mut self.channels[quot].selected;
+                    *selected &= !(1 << rem);
+                    self.feedback.channels[quot].selected.store(*selected);
                 }
                 _ => {}
             }
         }
 
         // produce sound
-        let held = &self.notes_held;
         let frames_per_beat = sample_rate as u64 * 60 / self.bpm;
         let gain = self.params.gain.load();
         for frame in output.chunks_exact_mut(channels) {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
-                for (chanid, (channel, feedback_pattern)) in self
-                    .channels
-                    .iter_mut()
-                    .zip(self.feedback.patterns.iter())
-                    .enumerate()
+                for (
+                    Channel { sample, selected },
+                    ChannelFeedback {
+                        pattern: feedback_pattern,
+                        ..
+                    },
+                ) in self.channels.iter_mut().zip(self.feedback.channels.iter())
                 {
                     let mut pattern = 0u64;
                     for b in 0..=PATTERN_LENGTH {
                         let mut a = false;
-                        for n in chanid * 12..(chanid + 1) * 12 {
-                            if held[n] {
+                        for n in 0..NOTES_PER_CHANNEL {
+                            if *selected & 1 << n != 0 {
                                 let nmod = n as u64 % 12;
                                 // TODO use different divisors. n2, fib?
                                 let div = nmod + 1;
@@ -138,7 +164,7 @@ impl SynthPlayer for Synth {
                     feedback_pattern.store(xorpattern);
 
                     if xorpattern >> PATTERN_LENGTH - 1 & 1 != 0 {
-                        *channel = Some(Sample {
+                        *sample = Some(Sample {
                             start_clock: self.clock,
                         });
                     }
@@ -146,13 +172,13 @@ impl SynthPlayer for Synth {
             }
 
             let mut value = 0f32;
-            for (ci, c) in self.channels.iter_mut().enumerate() {
-                if let Some(Sample { start_clock }) = *c {
+            for Channel { sample, .. } in self.channels.iter_mut() {
+                if let Some(Sample { start_clock }) = *sample {
                     let time_sample = self.clock - start_clock;
                     if let Some(&v) = self.samples[0].get(time_sample as usize) {
                         value += v;
                     } else {
-                        *c = None;
+                        *sample = None;
                     }
                 }
             }
