@@ -87,13 +87,13 @@ impl Config {
 
     pub fn generate_midi(&self) -> Result<Vec<u8>> {
         // TODO proper tempo
-        let ticks_per_beat = 1;
+        let ticks_per_beat = 4;
         let mut smf = midly::Smf::new(midly::Header::new(
             midly::Format::SingleTrack,
             midly::Timing::Metrical(ticks_per_beat.into()),
         ));
         let mut track = vec![];
-        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load()).try_into()?;
+        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load() / 4).try_into()?;
         track.push(TrackEvent {
             delta: 0.into(),
             kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
@@ -105,7 +105,7 @@ impl Config {
                 for c in 0..NUM_CHANNELS {
                     if self.get_beat(c, b) {
                         writer.add_event(midi_writer::Event {
-                            tick: b * u64::from(ticks_per_beat),
+                            tick: b,
                             kind: TrackEventKind::Midi {
                                 channel: 0.into(),
                                 message: midly::MidiMessage::NoteOn {
@@ -116,7 +116,7 @@ impl Config {
                         });
                         // TODO some other note length?
                         writer.add_event(midi_writer::Event {
-                            tick: (b + 1) * u64::from(ticks_per_beat),
+                            tick: b + 1,
                             kind: TrackEventKind::Midi {
                                 channel: 0.into(),
                                 message: midly::MidiMessage::NoteOff {

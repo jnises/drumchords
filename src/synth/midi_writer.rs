@@ -13,8 +13,8 @@ pub struct Event<'a> {
 
 impl Ord for Event<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // TODO for same tick sort noteon before noteoff
         // reverse order since we want smallest ticks first
+        // TODO this probably needs some love
         other.tick.cmp(&self.tick).then_with(|| {
             match self.kind {
                 TrackEventKind::Midi { channel, message } => match other.kind {
