@@ -13,7 +13,7 @@ eframe = "0.14"
 chrono = "0.4"
 cpal = { version = "0.13", features = ["wasm-bindgen"] }
 midir = "0.7"
-wmidi = "4.0"
+wmidi = "4.0" #< TODO replace this with midly?
 crossbeam = "0.8"
 anyhow = "1.0"
 env_logger = "0.9"
@@ -26,6 +26,8 @@ cfg-if = "1.0"
 hound = "3.4.0"
 num = "0.4.0"
 itertools = "0.10"
+midly = "0.5"
+rfd = "0.5"
 
 [profile.release]
 # make things smaller

@@ -19,6 +19,7 @@ fn selector(ui: &mut egui::Ui, on: &mut bool, bg: bool) {
         how_on,
     );
     ui.painter().rect(rect, radius, color, visuals.bg_stroke);
+    // TODO draw divisor
 }
 
 pub fn pattern_designer(

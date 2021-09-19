@@ -1,4 +1,5 @@
 mod pattern_designer;
+mod utils;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
 use crate::synth::{ChannelFeedback, Params, Synth, PATTERN_LENGTH};
@@ -12,8 +13,7 @@ use eframe::egui::{emath, pos2, Rect, Stroke};
 use eframe::{
     egui::{self, epaint, vec2, Color32},
     epi::{self, App},
-};
-use parking_lot::Mutex;
+};use parking_lot::Mutex;
 use pattern_designer::pattern_designer;
 use std::{collections::VecDeque, sync::Arc};
 
@@ -295,6 +295,10 @@ impl App for Drumchords {
                                 }
                             });
                         });
+                        if ui.button("💾").clicked() {
+                            utils::save_midi_file(&[0u8; 1024]);
+                            // TODO do stuff
+                        }
                     }
                 }
             });
