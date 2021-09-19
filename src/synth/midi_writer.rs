@@ -1,5 +1,6 @@
 use midly::{num::u28, MetaMessage, TrackEvent, TrackEventKind};
 use std::{
+    cmp::Ordering,
     collections::BinaryHeap,
     convert::{TryFrom, TryInto},
 };
@@ -14,7 +15,43 @@ impl Ord for Event<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // TODO for same tick sort noteon before noteoff
         // reverse order since we want smallest ticks first
-        other.tick.cmp(&self.tick)
+        other.tick.cmp(&self.tick).then_with(|| {
+            match self.kind {
+                TrackEventKind::Midi { channel, message } => match other.kind {
+                    TrackEventKind::Midi {
+                        channel: other_channel,
+                        message: other_message,
+                    } => other_channel.cmp(&channel).then_with(|| match message {
+                        // note off goes before everything else
+                        midly::MidiMessage::NoteOff { key, vel } => match other_message {
+                            midly::MidiMessage::NoteOff {
+                                key: other_key,
+                                vel: other_vel,
+                            } => key.cmp(&other_key).then_with(|| vel.cmp(&other_vel)),
+                            midly::MidiMessage::NoteOn { .. } => Ordering::Greater,
+                            _ => Ordering::Greater,
+                        },
+                        // note on goes last
+                        midly::MidiMessage::NoteOn { key, vel } => match other_message {
+                            midly::MidiMessage::NoteOff { .. } => Ordering::Less,
+                            midly::MidiMessage::NoteOn {
+                                key: other_key,
+                                vel: other_vel,
+                            } => key.cmp(&other_key).then_with(|| vel.cmp(&other_vel)),
+                            _ => Ordering::Less,
+                        },
+                        _ => match other_message {
+                            // noteoff goes before non note events
+                            midly::MidiMessage::NoteOff { .. } => Ordering::Less,
+                            _ => Ordering::Greater,
+                        },
+                    }),
+                    _ => Ordering::Equal,
+                },
+                // non midi events goes first
+                _ => Ordering::Greater,
+            }
+        })
     }
 }
 

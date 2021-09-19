@@ -130,6 +130,10 @@ impl Config {
             }
             writer.flush();
         }
+        track.push(TrackEvent {
+            delta: 0.into(),
+            kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
+        });
         smf.tracks.push(track);
         let mut buf = Vec::new();
         smf.write(&mut buf).unwrap();
