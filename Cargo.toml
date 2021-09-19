@@ -1,39 +1,39 @@
 [package]
-name = "drumchords"
-version = "0.3.0"
 authors = ["joel nises <joel.nises@gmail.com>"]
 edition = "2018"
+name = "drumchords"
+version = "0.3.0"
 
 [lib]
 # rlib needed for tests
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = "0.14"
-chrono = "0.4"
-cpal = { version = "0.13", features = ["wasm-bindgen"] }
-midir = "0.7"
+anyhow = {version = "1.0", features = ["backtrace"]} 
+cfg-if = "1.0" 
+chrono = "0.4" 
+console_error_panic_hook = "0.1" 
+cpal = {version = "0.13", features = ["wasm-bindgen"]} 
+crossbeam = "0.8" 
+eframe = "0.14" 
+env_logger = "0.9" 
+hound = "3.4.0" 
+itertools = "0.10" 
+log = "0.4" 
+midir = "0.7" 
+midly = "0.5" 
+num = "0.4.0" 
+parking_lot = {version = "0.11", features = ["wasm-bindgen"]} 
+rfd = "0.5" 
+ringbuf = "0.2" 
+web-sys = {version = "0.3", features = ["console", "Window"]} 
 wmidi = "4.0" #< TODO replace this with midly?
-crossbeam = "0.8"
-anyhow = "1.0"
-env_logger = "0.9"
-log = "0.4"
-parking_lot = { version = "0.11", features = ["wasm-bindgen"]}
-ringbuf = "0.2"
-web-sys = { version = "0.3", features = ["console", "Window"] }
-console_error_panic_hook = "0.1"
-cfg-if = "1.0"
-hound = "3.4.0"
-num = "0.4.0"
-itertools = "0.10"
-midly = "0.5"
-rfd = "0.5"
 
 [profile.release]
 # make things smaller
+codegen-units = 1
 lto = true
 opt-level = 'z'
-codegen-units = 1
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Os']

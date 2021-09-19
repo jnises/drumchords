@@ -33,12 +33,12 @@ struct NoteEvent {
 pub struct Params {
     pub gain: AtomicCell<f32>,
     pub locked: [AtomicCell<u16>; NUM_CHANNELS],
+    pub bpm: AtomicCell<u32>,
 }
 
 #[derive(Default)]
 pub struct ChannelFeedback {
     pub pattern: AtomicCell<u32>,
-    pub selected: AtomicCell<u16>,
 }
 
 pub struct Feedback {
@@ -53,67 +53,21 @@ impl Feedback {
     }
 }
 
-#[derive(Clone, Default)]
-struct Channel {
-    sample: Option<Sample>,
-    selected: u16,
-}
-
 #[derive(Clone)]
 struct Sample {
     start_clock: u64,
 }
 
-#[derive(Clone)]
-pub struct Synth {
-    clock: u64,
-    midi_events: MidiChannel,
-
-    params: Arc<Params>,
-    feedback: Arc<Feedback>,
-    samples: [Vec<f32>; 1],
-    bpm: u32,
-    channels: [Channel; NUM_CHANNELS],
+pub struct Config {
+    pub params: Params,
+    pub feedback: Feedback,
+    pub selected: [AtomicCell<u16>; NUM_CHANNELS],
 }
 
-impl Synth {
-    pub fn new(midi_events: MidiChannel) -> Self {
-        let hihat = WavReader::new(HIHAT)
-            .unwrap()
-            .into_samples::<i16>()
-            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
-            .collect();
-        // let snare = WavReader::new(SNARE)
-        //     .unwrap()
-        //     .into_samples::<i16>()
-        //     .map(|s| s.unwrap() as f32 / i16::MAX as f32)
-        //     .collect();
-        Self {
-            clock: 0,
-            midi_events,
-            params: Arc::new(Params {
-                gain: 1f32.into(),
-                locked: Default::default(),
-            }),
-            feedback: Arc::new(Feedback::new()),
-            samples: [hihat], //, snare],
-            // not your normal bpm
-            // TODO do it normal instead. but what to call it?
-            bpm: 120 * 4,
-            channels: Default::default(),
-        }
-    }
-
-    pub fn get_params(&self) -> Arc<Params> {
-        self.params.clone()
-    }
-
-    pub fn get_feedback(&self) -> Arc<Feedback> {
-        self.feedback.clone()
-    }
-
+impl Config {
     fn get_beat(&self, channel: usize, beat: u64) -> bool {
-        let Channel { selected, .. } = self.channels[channel];
+        // TODO don't load here. make copy of config to use to generate a pattern or midi?
+        let selected = self.selected[channel].load();
         let locked = self.params.locked[channel].load();
         let triggered = selected | locked;
         let f = |b| {
@@ -139,7 +93,7 @@ impl Synth {
             midly::Timing::Metrical(ticks_per_beat.into()),
         ));
         let mut track = vec![];
-        let us_per_beat = (60 * 1_000_000 / self.bpm).try_into()?;
+        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load()).try_into()?;
         track.push(TrackEvent {
             delta: 0.into(),
             kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
@@ -156,7 +110,7 @@ impl Synth {
                                 channel: 0.into(),
                                 message: midly::MidiMessage::NoteOn {
                                     vel: 127.into(),
-                                    key: u8::try_from(b)?.try_into()?,
+                                    key: u8::try_from(c)?.try_into()?,
                                 },
                             },
                         });
@@ -167,7 +121,7 @@ impl Synth {
                                 channel: 0.into(),
                                 message: midly::MidiMessage::NoteOff {
                                     vel: 127.into(),
-                                    key: u8::try_from(b)?.try_into()?,
+                                    key: u8::try_from(c)?.try_into()?,
                                 },
                             },
                         });
@@ -183,6 +137,53 @@ impl Synth {
     }
 }
 
+#[derive(Clone)]
+pub struct Synth {
+    samples: [Vec<f32>; 1],
+
+    clock: u64,
+    midi_events: MidiChannel,
+
+    config: Arc<Config>,
+    playing: [Option<Sample>; NUM_CHANNELS],
+}
+
+impl Synth {
+    pub fn new(midi_events: MidiChannel) -> Self {
+        let hihat = WavReader::new(HIHAT)
+            .unwrap()
+            .into_samples::<i16>()
+            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
+            .collect();
+        // let snare = WavReader::new(SNARE)
+        //     .unwrap()
+        //     .into_samples::<i16>()
+        //     .map(|s| s.unwrap() as f32 / i16::MAX as f32)
+        //     .collect();
+        Self {
+            samples: [hihat], //, snare],
+            clock: 0,
+            midi_events,
+            config: Arc::new(Config {
+                params: Params {
+                    gain: 1f32.into(),
+                    locked: Default::default(),
+                    // not your normal bpm
+                    // TODO do it normal instead. but what to call it?
+                    bpm: (120 * 4).into(),
+                },
+                feedback: Feedback::new(),
+                selected: Default::default(),
+            }),
+            playing: Default::default(),
+        }
+    }
+
+    pub fn get_config(&self) -> Arc<Config> {
+        self.config.clone()
+    }
+}
+
 pub trait SynthPlayer {
     fn play(&mut self, sample_rate: u32, channels: usize, output: &mut [f32]);
 }
@@ -194,39 +195,37 @@ impl SynthPlayer for Synth {
             match message {
                 wmidi::MidiMessage::NoteOn(_, note, _) => {
                     let (quot, rem) = (note as usize).div_mod_floor(&(NOTES_PER_CHANNEL as usize));
-                    let selected = &mut self.channels[quot].selected;
-                    *selected |= 1 << rem;
-                    self.feedback.channels[quot].selected.store(*selected);
+                    self.config.selected[quot].fetch_xor(1 << rem);
                 }
                 wmidi::MidiMessage::NoteOff(_, note, _) => {
                     let (quot, rem) = (note as usize).div_mod_floor(&(NOTES_PER_CHANNEL as usize));
-                    let selected = &mut self.channels[quot].selected;
-                    *selected &= !(1 << rem);
-                    self.feedback.channels[quot].selected.store(*selected);
+                    self.config.selected[quot].fetch_and(!(1 << rem));
                 }
                 _ => {}
             }
         }
 
         // produce sound
-        let frames_per_beat = sample_rate * 60 / self.bpm;
-        let gain = self.params.gain.load();
+        let frames_per_beat = sample_rate * 60 / self.config.params.bpm.load();
+        let gain = self.config.params.gain.load();
         for frame in output.chunks_exact_mut(channels) {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat.into());
             if beat_frame == 0 {
-                for channel in 0..self.channels.len() {
+                for channel in 0..NUM_CHANNELS {
                     let mut pattern = 0u32;
                     // TODO static assert?
                     debug_assert!(PATTERN_LENGTH <= 32);
                     for b in 0..PATTERN_LENGTH {
-                        if self.get_beat(channel, beat + b) {
+                        if self.config.get_beat(channel, beat + b) {
                             pattern |= 1 << (PATTERN_LENGTH - b - 1);
                         }
                     }
-                    self.feedback.channels[channel].pattern.store(pattern);
+                    self.config.feedback.channels[channel]
+                        .pattern
+                        .store(pattern);
 
                     if pattern >> PATTERN_LENGTH - 1 & 1 != 0 {
-                        self.channels[channel].sample = Some(Sample {
+                        self.playing[channel] = Some(Sample {
                             start_clock: self.clock,
                         });
                     }
@@ -234,7 +233,7 @@ impl SynthPlayer for Synth {
             }
 
             let mut value = 0f32;
-            for Channel { sample, .. } in self.channels.iter_mut() {
+            for sample in self.playing.iter_mut() {
                 if let Some(Sample { start_clock }) = *sample {
                     let time_sample = self.clock - start_clock;
                     if let Some(&v) = self.samples[0].get(time_sample as usize) {

@@ -2,7 +2,7 @@ mod pattern_designer;
 mod utils;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
-use crate::synth::{ChannelFeedback, Params, Synth, PATTERN_LENGTH};
+use crate::synth::{ChannelFeedback, Config, Synth, PATTERN_LENGTH};
 use crate::{
     audio::AudioManager,
     synth::{self, Feedback},
@@ -13,9 +13,13 @@ use eframe::egui::{emath, pos2, Rect, Stroke};
 use eframe::{
     egui::{self, epaint, vec2, Color32},
     epi::{self, App},
-};use parking_lot::Mutex;
+};
+use itertools::multizip;
+use parking_lot::Mutex;
 use pattern_designer::pattern_designer;
+use rfd::{FileDialog, MessageDialog, MessageLevel};
 use std::{collections::VecDeque, sync::Arc};
+use log::warn;
 
 const NAME: &str = "Drumchords";
 const VIS_SIZE: usize = 512;
@@ -33,8 +37,7 @@ pub struct Data {
     status_text: Arc<Mutex<String>>,
     forced_buffer_size: Option<u32>,
     left_vis_buffer: VecDeque<f32>,
-    synth_params: Arc<Params>,
-    synth_feedback: Arc<Feedback>,
+    synth_config: Arc<synth::Config>,
     periodic_updater: Option<PeriodicUpdater>,
 }
 
@@ -49,8 +52,7 @@ impl Drumchords {
         let midi = MidiReader::new(midi_tx.clone());
         let synth = Synth::new(midi_rx);
         let status_text = Arc::new(Mutex::new("".to_string()));
-        let synth_params = synth.get_params();
-        let synth_feedback = synth.get_feedback();
+        let synth_config = synth.get_config();
         let status_clone = status_text.clone();
         let audio = AudioManager::new(synth, move |e| {
             *status_clone.lock() = e;
@@ -62,8 +64,7 @@ impl Drumchords {
             status_text,
             forced_buffer_size: None,
             left_vis_buffer: VecDeque::with_capacity(VIS_SIZE * 2),
-            synth_params,
-            synth_feedback,
+            synth_config,
             periodic_updater: None,
         });
     }
@@ -115,8 +116,7 @@ impl App for Drumchords {
                         let left_vis_buffer = &mut data.left_vis_buffer;
                         let forced_buffer_size = &mut data.forced_buffer_size;
                         let status_text = &data.status_text;
-                        let params = data.synth_params.as_ref();
-                        let feedback = data.synth_feedback.as_ref();
+                        let config = data.synth_config.as_ref();
                         let setting_tab = &mut data.setting_tab;
                         ui.collapsing("settings:", |ui| {
                             ui.horizontal(|ui| {
@@ -236,21 +236,20 @@ impl App for Drumchords {
                         ui.group(|ui| {
                             ui.horizontal(|ui| {
                                 ui.label("gain:");
-                                let mut gain = params.gain.load();
+                                let mut gain = config.params.gain.load();
                                 ui.add(egui::Slider::new(&mut gain, 0f32..=1f32));
-                                params.gain.store(gain);
+                                config.params.gain.store(gain);
                             });
                         });
                         ui.group(|ui| {
                             ui.label("channels:");
                             ui.vertical(|ui| {
-                                for (
-                                    ChannelFeedback {
-                                        pattern,
-                                        selected: feedback_selected,
-                                    },
-                                    locked,
-                                ) in feedback.channels.iter().zip(params.locked.iter())
+                                for (ChannelFeedback { pattern }, locked, feedback_selected) in
+                                    multizip((
+                                        config.feedback.channels.iter(),
+                                        config.params.locked.iter(),
+                                        config.selected.iter(),
+                                    ))
                                 {
                                     ui.horizontal(|ui| {
                                         {
@@ -296,8 +295,19 @@ impl App for Drumchords {
                             });
                         });
                         if ui.button("💾").clicked() {
-                            utils::save_midi_file(&[0u8; 1024]);
-                            // TODO do stuff
+                            match data.synth_config.generate_midi() {
+                                Ok(midi) => {
+                                    utils::save_midi_file(&midi);
+                                }
+                                Err(e) => {
+                                    warn!("{:?}", e);
+                                    let _ = MessageDialog::new()
+                                        .set_level(MessageLevel::Error)
+                                        .set_title("midi export error")
+                                        .set_description(&e.to_string())
+                                        .show();
+                                }
+                            }
                         }
                     }
                 }
