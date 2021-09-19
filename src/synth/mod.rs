@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::{collections::BinaryHeap, convert::TryInto, sync::Arc};
 
+use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
 use hound::WavReader;
-use itertools::multizip;
+use midly::{MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
 use wmidi::MidiMessage;
 
@@ -66,7 +67,7 @@ pub struct Synth {
     params: Arc<Params>,
     feedback: Arc<Feedback>,
     samples: [Vec<f32>; 1],
-    bpm: u64,
+    bpm: u32,
     channels: [Channel; NUM_CHANNELS],
 }
 
@@ -92,6 +93,7 @@ impl Synth {
             feedback: Arc::new(Feedback::new()),
             samples: [hihat], //, snare],
             // not your normal bpm
+            // TODO do it normal instead. but what to call it?
             bpm: 120 * 4,
             channels: Default::default(),
         }
@@ -124,9 +126,31 @@ impl Synth {
         f(beat) != f(beat.wrapping_sub(1))
     }
 
-    // pub fn generate_midi(&self) -> Vec<u8> {
+    pub fn generate_midi(&self) -> Result<Vec<u8>> {
+        // TODO proper tempo
+        let mut smf = midly::Smf::new(midly::Header::new(
+            midly::Format::SingleTrack,
+            midly::Timing::Metrical(100.into()),
+        ));
+        let mut track = vec![];
+        let us_per_beat = (60 * 1_000_000 / self.bpm).try_into()?;
+        track.push(TrackEvent {
+            delta: 0.into(),
+            kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
+        });
+        let mut pqueue = BinaryHeap::new();
+        // TODO some other length
+        for b in 0..1024 {
+            for c in 0..NUM_CHANNELS {
+                if self.get_beat(c, b)
 
-    // }
+            }
+        }
+        smf.tracks.push(track);
+        let mut buf = Vec::new();
+        smf.write(&mut buf).unwrap();
+        Ok(buf)
+    }
 }
 
 pub trait SynthPlayer {
