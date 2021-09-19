@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::{collections::BinaryHeap, convert::TryInto, sync::Arc};
 
+use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
 use hound::WavReader;
-use itertools::multizip;
+use midly::{MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
 use wmidi::MidiMessage;
 
@@ -66,7 +67,7 @@ pub struct Synth {
     params: Arc<Params>,
     feedback: Arc<Feedback>,
     samples: [Vec<f32>; 1],
-    bpm: u64,
+    bpm: u32,
     channels: [Channel; NUM_CHANNELS],
 }
 
@@ -92,6 +93,7 @@ impl Synth {
             feedback: Arc::new(Feedback::new()),
             samples: [hihat], //, snare],
             // not your normal bpm
+            // TODO do it normal instead. but what to call it?
             bpm: 120 * 4,
             channels: Default::default(),
         }
@@ -103,6 +105,51 @@ impl Synth {
 
     pub fn get_feedback(&self) -> Arc<Feedback> {
         self.feedback.clone()
+    }
+
+    fn get_beat(&self, channel: usize, beat: u64) -> bool {
+        let Channel { selected, .. } = self.channels[channel];
+        let locked = self.params.locked[channel].load();
+        let triggered = selected | locked;
+        let f = |b| {
+            let mut a = false;
+            for n in 0..NOTES_PER_CHANNEL {
+                if triggered & 1 << n != 0 {
+                    // TODO use different divisors. n2, fib?
+                    let div = n + 1;
+                    let c = b / div & 1 == 0;
+                    a = a != c;
+                }
+            }
+            a
+        };
+        f(beat) != f(beat.wrapping_sub(1))
+    }
+
+    pub fn generate_midi(&self) -> Result<Vec<u8>> {
+        // TODO proper tempo
+        let mut smf = midly::Smf::new(midly::Header::new(
+            midly::Format::SingleTrack,
+            midly::Timing::Metrical(100.into()),
+        ));
+        let mut track = vec![];
+        let us_per_beat = (60 * 1_000_000 / self.bpm).try_into()?;
+        track.push(TrackEvent {
+            delta: 0.into(),
+            kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
+        });
+        let mut pqueue = BinaryHeap::new();
+        // TODO some other length
+        for b in 0..1024 {
+            for c in 0..NUM_CHANNELS {
+                if self.get_beat(c, b)
+
+            }
+        }
+        smf.tracks.push(track);
+        let mut buf = Vec::new();
+        smf.write(&mut buf).unwrap();
+        Ok(buf)
     }
 }
 
@@ -137,43 +184,19 @@ impl SynthPlayer for Synth {
         for frame in output.chunks_exact_mut(channels) {
             let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
             if beat_frame == 0 {
-                for (
-                    Channel {
-                        sample,
-                        ref selected,
-                    },
-                    ChannelFeedback {
-                        pattern: feedback_pattern,
-                        ..
-                    },
-                    locked,
-                ) in multizip((
-                    self.channels.iter_mut(),
-                    self.feedback.channels.iter(),
-                    self.params.locked.iter(),
-                )) {
-                    let selected = selected | locked.load();
-                    let mut pattern = 0u64;
-                    for b in 0..=PATTERN_LENGTH {
-                        let mut a = false;
-                        for n in 0..NOTES_PER_CHANNEL {
-                            if selected & 1 << n != 0 {
-                                let nmod = n as u64 % 12;
-                                // TODO use different divisors. n2, fib?
-                                let div = nmod + 1;
-                                let c = (beat - 1 + b) / div & 1 == 0;
-                                a = a != c;
-                            }
-                        }
-                        if a {
-                            pattern |= 1 << (PATTERN_LENGTH - b);
+                for channel in 0..self.channels.len() {
+                    let mut pattern = 0u32;
+                    // TODO static assert?
+                    debug_assert!(PATTERN_LENGTH <= 32);
+                    for b in 0..PATTERN_LENGTH {
+                        if self.get_beat(channel, beat + b) {
+                            pattern |= 1 << (PATTERN_LENGTH - b - 1);
                         }
                     }
-                    let xorpattern = (pattern ^ (pattern >> 1)) as u32;
-                    feedback_pattern.store(xorpattern);
+                    self.feedback.channels[channel].pattern.store(pattern);
 
-                    if xorpattern >> PATTERN_LENGTH - 1 & 1 != 0 {
-                        *sample = Some(Sample {
+                    if pattern >> PATTERN_LENGTH - 1 & 1 != 0 {
+                        self.channels[channel].sample = Some(Sample {
                             start_clock: self.clock,
                         });
                     }
