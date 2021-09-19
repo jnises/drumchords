@@ -1,20 +1,25 @@
-use std::{collections::BinaryHeap, convert::TryInto, sync::Arc};
+mod midi_writer;
+use midi_writer::MidiWriter;
+use std::{
+    convert::{TryFrom, TryInto},
+    sync::Arc,
+};
 
 use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
 use hound::WavReader;
-use midly::{MetaMessage, TrackEvent, TrackEventKind};
+use midly::{self, num::u7, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
-use wmidi::MidiMessage;
+use wmidi;
 
-const HIHAT: &[u8] = include_bytes!("../samples/hihat.wav");
+const HIHAT: &[u8] = include_bytes!("../../samples/hihat.wav");
 //const SNARE: &[u8] = include_bytes!("../samples/snare.wav");
 const NUM_CHANNELS: usize = 11;
 pub const PATTERN_LENGTH: u64 = 32;
 const NUM_NOTES: usize = 128;
 pub const NOTES_PER_CHANNEL: u64 = 12;
 
-type MidiChannel = channel::Receiver<MidiMessage<'static>>;
+type MidiChannel = channel::Receiver<wmidi::MidiMessage<'static>>;
 
 #[derive(Clone)]
 struct NoteEvent {
@@ -128,9 +133,10 @@ impl Synth {
 
     pub fn generate_midi(&self) -> Result<Vec<u8>> {
         // TODO proper tempo
+        let ticks_per_beat = 1;
         let mut smf = midly::Smf::new(midly::Header::new(
             midly::Format::SingleTrack,
-            midly::Timing::Metrical(100.into()),
+            midly::Timing::Metrical(ticks_per_beat.into()),
         ));
         let mut track = vec![];
         let us_per_beat = (60 * 1_000_000 / self.bpm).try_into()?;
@@ -138,13 +144,37 @@ impl Synth {
             delta: 0.into(),
             kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
         });
-        let mut pqueue = BinaryHeap::new();
-        // TODO some other length
-        for b in 0..1024 {
-            for c in 0..NUM_CHANNELS {
-                if self.get_beat(c, b)
-
+        {
+            let mut writer = MidiWriter::new(&mut track);
+            // TODO some other length
+            for b in 0..1024 {
+                for c in 0..NUM_CHANNELS {
+                    if self.get_beat(c, b) {
+                        writer.add_event(midi_writer::Event {
+                            tick: b * u64::from(ticks_per_beat),
+                            kind: TrackEventKind::Midi {
+                                channel: 0.into(),
+                                message: midly::MidiMessage::NoteOn {
+                                    vel: 127.into(),
+                                    key: u8::try_from(b)?.try_into()?,
+                                },
+                            },
+                        });
+                        // TODO some other note length?
+                        writer.add_event(midi_writer::Event {
+                            tick: (b + 1) * u64::from(ticks_per_beat),
+                            kind: TrackEventKind::Midi {
+                                channel: 0.into(),
+                                message: midly::MidiMessage::NoteOff {
+                                    vel: 127.into(),
+                                    key: u8::try_from(b)?.try_into()?,
+                                },
+                            },
+                        });
+                    }
+                }
             }
+            writer.flush();
         }
         smf.tracks.push(track);
         let mut buf = Vec::new();
@@ -179,10 +209,10 @@ impl SynthPlayer for Synth {
         }
 
         // produce sound
-        let frames_per_beat = sample_rate as u64 * 60 / self.bpm;
+        let frames_per_beat = sample_rate * 60 / self.bpm;
         let gain = self.params.gain.load();
         for frame in output.chunks_exact_mut(channels) {
-            let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat);
+            let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat.into());
             if beat_frame == 0 {
                 for channel in 0..self.channels.len() {
                     let mut pattern = 0u32;

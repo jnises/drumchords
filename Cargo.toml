@@ -36,6 +36,6 @@ opt-level = 'z'
 codegen-units = 1
 
 [package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Os']
 # wasm-opt doesn't seem to work on apple silicon yet
-# wasm-opt = ['-Os']
-wasm-opt = false
+# wasm-opt = false
