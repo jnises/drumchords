@@ -102,7 +102,7 @@ impl Config {
         {
             let mut writer = MidiWriter::new(&mut track);
             // TODO some other length
-            for b in 0..256 {
+            for b in 0..1024 {
                 for c in 0..NUM_CHANNELS {
                     if self.get_beat(c, b) {
                         let key = match c {

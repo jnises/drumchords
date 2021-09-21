@@ -19,15 +19,15 @@ eframe = "0.14"
 env_logger = "0.9" 
 hound = "3.4.0" 
 itertools = "0.10" 
+js-sys = "0.3" 
 log = "0.4" 
 midir = "0.7" 
-midly = "0.5" 
+midly = {version = "0.5", default-features = false, features = ["std", "alloc"]} 
 num = "0.4.0" 
 parking_lot = {version = "0.11", features = ["wasm-bindgen"]} 
 rfd = "0.5" 
 ringbuf = "0.2" 
 web-sys = {version = "0.3", features = ["console", "Window", "HtmlAnchorElement", "Document", "CssStyleDeclaration", "Url"]} 
-js-sys = "0.3"
 wmidi = "4.0" #< TODO replace this with midly?
 
 [profile.release]
@@ -37,6 +37,6 @@ lto = true
 opt-level = 'z'
 
 [package.metadata.wasm-pack.profile.release]
-#wasm-opt = ['-Os']
+wasm-opt = ['-Os']
 # wasm-opt doesn't seem to work on apple silicon yet
-wasm-opt = false
+#wasm-opt = false
