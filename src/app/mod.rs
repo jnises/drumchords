@@ -17,7 +17,7 @@ use eframe::{
 use itertools::multizip;
 use parking_lot::Mutex;
 use pattern_designer::pattern_designer;
-use rfd::{FileDialog, MessageDialog, MessageLevel};
+use rfd::{MessageDialog, MessageLevel};
 use std::{collections::VecDeque, sync::Arc};
 use log::warn;
 
@@ -100,7 +100,8 @@ impl App for Drumchords {
                 ui.heading(NAME);
                 match self {
                     Self::Uninitialized => {
-                        if ui.button("start").clicked() {
+                        // TODO make button larger
+                        if ui.button("▶").clicked() {
                             self.init();
                         }
                     }

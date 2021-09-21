@@ -85,6 +85,7 @@ impl Config {
         f(beat) != f(beat.wrapping_sub(1))
     }
 
+    // TODO run this on a web worker to not block the main thread
     pub fn generate_midi(&self) -> Result<Vec<u8>> {
         // TODO proper tempo
         let ticks_per_beat = 4;
@@ -93,7 +94,7 @@ impl Config {
             midly::Timing::Metrical(ticks_per_beat.into()),
         ));
         let mut track = vec![];
-        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load() / 4).try_into()?;
+        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load() * 4).try_into()?;
         track.push(TrackEvent {
             delta: 0.into(),
             kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
@@ -101,7 +102,7 @@ impl Config {
         {
             let mut writer = MidiWriter::new(&mut track);
             // TODO some other length
-            for b in 0..1024 {
+            for b in 0..256 {
                 for c in 0..NUM_CHANNELS {
                     if self.get_beat(c, b) {
                         let key = match c {
@@ -118,7 +119,7 @@ impl Config {
                             8 => 74,
                             9 => 76,
                             10 => 77,
-                            _ => panic!("unexpected channel")
+                            _ => panic!("unexpected channel {}", c)
                         }.into();
                         writer.add_event(midi_writer::Event {
                             tick: b,

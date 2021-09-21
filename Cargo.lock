@@ -712,6 +712,7 @@ dependencies = [
  "env_logger",
  "hound",
  "itertools",
+ "js-sys",
  "log",
  "midir",
  "midly",
