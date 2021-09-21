@@ -104,13 +104,29 @@ impl Config {
             for b in 0..1024 {
                 for c in 0..NUM_CHANNELS {
                     if self.get_beat(c, b) {
+                        let key = match c {
+                            // c4
+                            0 => 60,
+                            1 => 62,
+                            2 => 64,
+                            3 => 65,
+                            4 => 67,
+                            5 => 69,
+                            6 => 71,
+                            // c5
+                            7 => 72,
+                            8 => 74,
+                            9 => 76,
+                            10 => 77,
+                            _ => panic!("unexpected channel")
+                        }.into();
                         writer.add_event(midi_writer::Event {
                             tick: b,
                             kind: TrackEventKind::Midi {
                                 channel: 0.into(),
                                 message: midly::MidiMessage::NoteOn {
                                     vel: 127.into(),
-                                    key: u8::try_from(c)?.try_into()?,
+                                    key,
                                 },
                             },
                         });
