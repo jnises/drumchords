@@ -330,7 +330,7 @@ impl App for Drumchords {
                                         let mut selected_sound = selected_sound_atomic.load();
                                         ComboBox::from_id_source(egui::Id::new(channel_id).with("sample_combo"))
                                         .selected_text(selected_sound.to_string())
-                                        .width(1f32) // as small as possible
+                                        .width(70f32)
                                         .show_ui(ui, |ui| {
                                             for s in synth::sound_bank::Sample::into_enum_iter() {
                                                 ui.selectable_value(&mut selected_sound, s, s.to_string());
