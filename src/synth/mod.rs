@@ -34,6 +34,7 @@ pub struct Params {
     pub gain: AtomicCell<f32>,
     pub locked: [AtomicCell<u16>; NUM_CHANNELS],
     pub bpm: AtomicCell<u32>,
+    pub playing: AtomicCell<bool>,
 }
 
 #[derive(Default)]
@@ -119,8 +120,9 @@ impl Config {
                             8 => 74,
                             9 => 76,
                             10 => 77,
-                            _ => panic!("unexpected channel {}", c)
-                        }.into();
+                            _ => panic!("unexpected channel {}", c),
+                        }
+                        .into();
                         writer.add_event(midi_writer::Event {
                             tick: b,
                             kind: TrackEventKind::Midi {
@@ -192,6 +194,7 @@ impl Synth {
                     // not your normal bpm
                     // TODO do it normal instead. but what to call it?
                     bpm: (120 * 4).into(),
+                    playing: true.into(),
                 },
                 feedback: Feedback::new(),
                 selected: Default::default(),
@@ -230,43 +233,49 @@ impl SynthPlayer for Synth {
         let frames_per_beat = sample_rate * 60 / self.config.params.bpm.load();
         let gain = self.config.params.gain.load();
         for frame in output.chunks_exact_mut(channels) {
-            let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat.into());
-            if beat_frame == 0 {
-                for channel in 0..NUM_CHANNELS {
-                    let mut pattern = 0u32;
-                    // TODO static assert?
-                    debug_assert!(PATTERN_LENGTH <= 32);
-                    for b in 0..PATTERN_LENGTH {
-                        if self.config.get_beat(channel, beat + b) {
-                            pattern |= 1 << (PATTERN_LENGTH - b - 1);
+            if self.config.params.playing.load() {
+                let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat.into());
+                if beat_frame == 0 {
+                    for channel in 0..NUM_CHANNELS {
+                        let mut pattern = 0u32;
+                        // TODO static assert?
+                        debug_assert!(PATTERN_LENGTH <= 32);
+                        for b in 0..PATTERN_LENGTH {
+                            if self.config.get_beat(channel, beat + b) {
+                                pattern |= 1 << (PATTERN_LENGTH - b - 1);
+                            }
+                        }
+                        self.config.feedback.channels[channel]
+                            .pattern
+                            .store(pattern);
+
+                        if pattern >> PATTERN_LENGTH - 1 & 1 != 0 {
+                            self.playing[channel] = Some(Sample {
+                                start_clock: self.clock,
+                            });
                         }
                     }
-                    self.config.feedback.channels[channel]
-                        .pattern
-                        .store(pattern);
+                }
 
-                    if pattern >> PATTERN_LENGTH - 1 & 1 != 0 {
-                        self.playing[channel] = Some(Sample {
-                            start_clock: self.clock,
-                        });
+                let mut value = 0f32;
+                for sample in self.playing.iter_mut() {
+                    if let Some(Sample { start_clock }) = *sample {
+                        let time_sample = self.clock - start_clock;
+                        if let Some(&v) = self.samples[0].get(time_sample as usize) {
+                            value += v;
+                        } else {
+                            *sample = None;
+                        }
                     }
                 }
-            }
-
-            let mut value = 0f32;
-            for sample in self.playing.iter_mut() {
-                if let Some(Sample { start_clock }) = *sample {
-                    let time_sample = self.clock - start_clock;
-                    if let Some(&v) = self.samples[0].get(time_sample as usize) {
-                        value += v;
-                    } else {
-                        *sample = None;
-                    }
+                value *= gain;
+                for sample in frame.iter_mut() {
+                    *sample = value;
                 }
-            }
-            value *= gain;
-            for sample in frame.iter_mut() {
-                *sample = value;
+            } else {
+                for sample in frame.iter_mut() {
+                    *sample = 0f32;
+                }
             }
             self.clock += 1;
         }

@@ -15,11 +15,11 @@ use eframe::{
     epi::{self, App},
 };
 use itertools::multizip;
+use log::warn;
 use parking_lot::Mutex;
 use pattern_designer::pattern_designer;
 use rfd::{MessageDialog, MessageLevel};
 use std::{collections::VecDeque, sync::Arc};
-use log::warn;
 
 const NAME: &str = "Drumchords";
 const VIS_SIZE: usize = 512;
@@ -112,6 +112,7 @@ impl App for Drumchords {
                             let repaint_signal = frame.repaint_signal();
                             data.periodic_updater = Some(PeriodicUpdater::new(repaint_signal));
                         }
+                        // TODO nicer to use destructuring here?
                         let audio = &mut data.audio;
                         let midi = &data.midi;
                         let left_vis_buffer = &mut data.left_vis_buffer;
@@ -119,6 +120,29 @@ impl App for Drumchords {
                         let status_text = &data.status_text;
                         let config = data.synth_config.as_ref();
                         let setting_tab = &mut data.setting_tab;
+                        let synth_config = &data.synth_config;
+                        ui.horizontal(|ui| {
+                            let mut playing = config.params.playing.load();
+                            ui.selectable_value(&mut playing, true, "▶");
+                            ui.selectable_value(&mut playing, false, "⏹");
+                            config.params.playing.store(playing);
+
+                            if ui.button("💾").clicked() {
+                                match synth_config.generate_midi() {
+                                    Ok(midi) => {
+                                        utils::save_midi_file(&midi);
+                                    }
+                                    Err(e) => {
+                                        warn!("{:?}", e);
+                                        let _ = MessageDialog::new()
+                                            .set_level(MessageLevel::Error)
+                                            .set_title("midi export error")
+                                            .set_description(&e.to_string())
+                                            .show();
+                                    }
+                                }
+                            }
+                        });
                         ui.collapsing("settings:", |ui| {
                             ui.horizontal(|ui| {
                                 ui.selectable_value(setting_tab, Setting::Input, "input");
@@ -295,21 +319,6 @@ impl App for Drumchords {
                                 }
                             });
                         });
-                        if ui.button("💾").clicked() {
-                            match data.synth_config.generate_midi() {
-                                Ok(midi) => {
-                                    utils::save_midi_file(&midi);
-                                }
-                                Err(e) => {
-                                    warn!("{:?}", e);
-                                    let _ = MessageDialog::new()
-                                        .set_level(MessageLevel::Error)
-                                        .set_title("midi export error")
-                                        .set_description(&e.to_string())
-                                        .show();
-                                }
-                            }
-                        }
                     }
                 }
             });
