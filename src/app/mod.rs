@@ -1,5 +1,6 @@
 mod pattern_designer;
 mod utils;
+mod toggle;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
 use crate::synth::{ChannelFeedback, Config, Synth, PATTERN_LENGTH};
@@ -269,8 +270,10 @@ impl App for Drumchords {
                         ui.group(|ui| {
                             ui.label("channels:");
                             ui.vertical(|ui| {
-                                for (ChannelFeedback { pattern }, locked, feedback_selected) in
+                                let mut muted = config.params.muted.load();
+                                for (channel_id, ChannelFeedback { pattern }, locked, feedback_selected) in
                                     multizip((
+                                        0..,
                                         config.feedback.channels.iter(),
                                         config.params.locked.iter(),
                                         config.selected.iter(),
@@ -315,8 +318,12 @@ impl App for Drumchords {
                                             synth::NOTES_PER_CHANNEL,
                                         );
                                         locked.store(fg_pattern);
+                                        let mut channel_muted = muted >> channel_id & 1 != 0;
+                                        toggle::toggle(ui, &mut channel_muted, "🔇");
+                                        muted = muted & !(1 << channel_id) | (if channel_muted { 1 } else { 0 } << channel_id);
                                     });
                                 }
+                                config.params.muted.store(muted);
                             });
                         });
                     }

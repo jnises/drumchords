@@ -35,6 +35,8 @@ pub struct Params {
     pub locked: [AtomicCell<u16>; NUM_CHANNELS],
     pub bpm: AtomicCell<u32>,
     pub playing: AtomicCell<bool>,
+    // TODO assert that this is wide enough
+    pub muted: AtomicCell<u64>,
 }
 
 #[derive(Default)]
@@ -195,6 +197,7 @@ impl Synth {
                     // TODO do it normal instead. but what to call it?
                     bpm: (120 * 4).into(),
                     playing: true.into(),
+                    muted: 0.into(),
                 },
                 feedback: Feedback::new(),
                 selected: Default::default(),
@@ -258,13 +261,16 @@ impl SynthPlayer for Synth {
                 }
 
                 let mut value = 0f32;
-                for sample in self.playing.iter_mut() {
-                    if let Some(Sample { start_clock }) = *sample {
-                        let time_sample = self.clock - start_clock;
-                        if let Some(&v) = self.samples[0].get(time_sample as usize) {
-                            value += v;
-                        } else {
-                            *sample = None;
+                let muted = self.config.params.muted.load();
+                for (i, sample) in self.playing.iter_mut().enumerate() {
+                    if muted >> i & 1 == 0{
+                        if let Some(Sample { start_clock }) = *sample {
+                            let time_sample = self.clock - start_clock;
+                            if let Some(&v) = self.samples[0].get(time_sample as usize) {
+                                value += v;
+                            } else {
+                                *sample = None;
+                            }
                         }
                     }
                 }
