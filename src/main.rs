@@ -22,7 +22,7 @@ fn main() {
             // has to be disabled to work with cpal
             drag_and_drop_support: false,
             initial_window_size: Some(Vec2 {
-                x: 500f32,
+                x: 600f32,
                 y: 600f32,
             }),
             ..Default::default()

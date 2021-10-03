@@ -1,4 +1,5 @@
 mod midi_writer;
+pub mod sound_bank;
 use midi_writer::MidiWriter;
 use std::{
     convert::{TryFrom, TryInto},
@@ -8,15 +9,12 @@ use std::{
 use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
 use hound::WavReader;
-use midly::{self, num::u7, MetaMessage, TrackEvent, TrackEventKind};
+use midly::{self, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
 use wmidi;
 
-const HIHAT: &[u8] = include_bytes!("../../samples/hihat.wav");
-//const SNARE: &[u8] = include_bytes!("../samples/snare.wav");
 const NUM_CHANNELS: usize = 11;
 pub const PATTERN_LENGTH: u64 = 32;
-const NUM_NOTES: usize = 128;
 pub const NOTES_PER_CHANNEL: u64 = 12;
 
 type MidiChannel = channel::Receiver<wmidi::MidiMessage<'static>>;
@@ -37,6 +35,7 @@ pub struct Params {
     pub playing: AtomicCell<bool>,
     // TODO assert that this is wide enough
     pub muted: AtomicCell<u64>,
+    pub channel_samples: [AtomicCell<sound_bank::Sample>; NUM_CHANNELS],
 }
 
 #[derive(Default)]
@@ -57,7 +56,7 @@ impl Feedback {
 }
 
 #[derive(Clone)]
-struct Sample {
+struct TimedClip {
     start_clock: u64,
 }
 
@@ -164,29 +163,21 @@ impl Config {
 
 #[derive(Clone)]
 pub struct Synth {
-    samples: [Vec<f32>; 1],
+    sound_bank: sound_bank::Bank,
 
     clock: u64,
     midi_events: MidiChannel,
 
     config: Arc<Config>,
-    playing: [Option<Sample>; NUM_CHANNELS],
+    playing: [Option<TimedClip>; NUM_CHANNELS],
 }
 
 impl Synth {
     pub fn new(midi_events: MidiChannel) -> Self {
-        let hihat = WavReader::new(HIHAT)
-            .unwrap()
-            .into_samples::<i16>()
-            .map(|s| s.unwrap() as f32 / i16::MAX as f32)
-            .collect();
-        // let snare = WavReader::new(SNARE)
-        //     .unwrap()
-        //     .into_samples::<i16>()
-        //     .map(|s| s.unwrap() as f32 / i16::MAX as f32)
-        //     .collect();
+        const HIHAT_SAMPLE: AtomicCell<sound_bank::Sample> =
+            AtomicCell::new(sound_bank::Sample::Hihat);
         Self {
-            samples: [hihat], //, snare],
+            sound_bank: sound_bank::Bank::new(),
             clock: 0,
             midi_events,
             config: Arc::new(Config {
@@ -198,6 +189,7 @@ impl Synth {
                     bpm: (120 * 4).into(),
                     playing: true.into(),
                     muted: 0.into(),
+                    channel_samples: [HIHAT_SAMPLE; NUM_CHANNELS],
                 },
                 feedback: Feedback::new(),
                 selected: Default::default(),
@@ -253,7 +245,7 @@ impl SynthPlayer for Synth {
                             .store(pattern);
 
                         if pattern >> PATTERN_LENGTH - 1 & 1 != 0 {
-                            self.playing[channel] = Some(Sample {
+                            self.playing[channel] = Some(TimedClip {
                                 start_clock: self.clock,
                             });
                         }
@@ -263,10 +255,14 @@ impl SynthPlayer for Synth {
                 let mut value = 0f32;
                 let muted = self.config.params.muted.load();
                 for (i, sample) in self.playing.iter_mut().enumerate() {
-                    if muted >> i & 1 == 0{
-                        if let Some(Sample { start_clock }) = *sample {
+                    if muted >> i & 1 == 0 {
+                        if let Some(TimedClip { start_clock }) = *sample {
                             let time_sample = self.clock - start_clock;
-                            if let Some(&v) = self.samples[0].get(time_sample as usize) {
+                            if let Some(&v) = self
+                                .sound_bank
+                                .get_sound(self.config.params.channel_samples[i].load())
+                                .get(time_sample as usize)
+                            {
                                 value += v;
                             } else {
                                 *sample = None;

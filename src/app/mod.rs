@@ -10,7 +10,7 @@ use crate::{
 };
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
-use eframe::egui::{emath, pos2, Rect, Stroke};
+use eframe::egui::{ComboBox, Rect, Stroke, emath, pos2};
 use eframe::{
     egui::{self, epaint, vec2, Color32},
     epi::{self, App},
@@ -21,6 +21,7 @@ use parking_lot::Mutex;
 use pattern_designer::pattern_designer;
 use rfd::{MessageDialog, MessageLevel};
 use std::{collections::VecDeque, sync::Arc};
+use enum_iterator::IntoEnumIterator;
 
 const NAME: &str = "Drumchords";
 const VIS_SIZE: usize = 512;
@@ -271,12 +272,13 @@ impl App for Drumchords {
                             ui.label("channels:");
                             ui.vertical(|ui| {
                                 let mut muted = config.params.muted.load();
-                                for (channel_id, ChannelFeedback { pattern }, locked, feedback_selected) in
+                                for (channel_id, ChannelFeedback { pattern }, locked, feedback_selected, selected_sound_atomic) in
                                     multizip((
                                         0..,
                                         config.feedback.channels.iter(),
                                         config.params.locked.iter(),
                                         config.selected.iter(),
+                                        config.params.channel_samples.iter(),
                                     ))
                                 {
                                     ui.horizontal(|ui| {
@@ -318,9 +320,23 @@ impl App for Drumchords {
                                             synth::NOTES_PER_CHANNEL,
                                         );
                                         locked.store(fg_pattern);
+
+                                        // mute toggle
                                         let mut channel_muted = muted >> channel_id & 1 != 0;
                                         toggle::toggle(ui, &mut channel_muted, "🔇");
                                         muted = muted & !(1 << channel_id) | (if channel_muted { 1 } else { 0 } << channel_id);
+
+                                        // sample selector
+                                        let mut selected_sound = selected_sound_atomic.load();
+                                        ComboBox::from_id_source(egui::Id::new(channel_id).with("sample_combo"))
+                                        .selected_text(selected_sound.to_string())
+                                        .width(1f32) // as small as possible
+                                        .show_ui(ui, |ui| {
+                                            for s in synth::sound_bank::Sample::into_enum_iter() {
+                                                ui.selectable_value(&mut selected_sound, s, s.to_string());
+                                            }
+                                        });
+                                        selected_sound_atomic.store(selected_sound);
                                     });
                                 }
                                 config.params.muted.store(muted);

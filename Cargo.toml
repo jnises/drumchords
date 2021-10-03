@@ -29,6 +29,9 @@ rfd = "0.5"
 ringbuf = "0.2" 
 web-sys = {version = "0.3", features = ["console", "Window", "HtmlAnchorElement", "Document", "CssStyleDeclaration", "Url"]} 
 wmidi = "4.0" #< TODO replace this with midly?
+enum-map = "1.1"
+enum-iterator = "0.7"
+strum_macros = "0.21"
 
 [profile.release]
 # make things smaller
