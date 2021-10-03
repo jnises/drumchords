@@ -83,7 +83,9 @@ impl<'a, 'b> MidiWriter<'a, 'b> {
 
     pub fn flush(mut self) {
         // TODO reserve in track
+        // TODO handle the case where a noteon is enqueued before the previous noteoff
         while let Some(Event { tick, kind }) = self.heap.pop() {
+            debug_assert!(self.last_tick <= tick);
             self.track.push(TrackEvent {
                 delta: u28::try_from(u32::try_from(tick - self.last_tick).unwrap()).unwrap(),
                 kind: kind,

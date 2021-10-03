@@ -138,7 +138,7 @@ impl Config {
                                 channel: 0.into(),
                                 message: midly::MidiMessage::NoteOff {
                                     vel: 127.into(),
-                                    key: u8::try_from(c)?.try_into()?,
+                                    key,
                                 },
                             },
                         });
