@@ -32,6 +32,7 @@ wmidi = "4.0" #< TODO replace this with midly?
 enum-map = "1.1"
 enum-iterator = "0.7"
 strum_macros = "0.21"
+rubato = "0.10"
 
 [profile.release]
 # make things smaller

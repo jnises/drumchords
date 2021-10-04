@@ -163,7 +163,7 @@ impl Config {
 
 #[derive(Clone)]
 pub struct Synth {
-    sound_bank: sound_bank::Bank,
+    sound_bank: Option<sound_bank::Bank>,
 
     clock: u64,
     midi_events: MidiChannel,
@@ -177,7 +177,7 @@ impl Synth {
         const HIHAT_SAMPLE: AtomicCell<sound_bank::Sample> =
             AtomicCell::new(sound_bank::Sample::Hihat);
         Self {
-            sound_bank: sound_bank::Bank::new(),
+            sound_bank: None,
             clock: 0,
             midi_events,
             config: Arc::new(Config {
@@ -209,6 +209,13 @@ pub trait SynthPlayer {
 
 impl SynthPlayer for Synth {
     fn play(&mut self, sample_rate: u32, channels: usize, output: &mut [f32]) {
+        // set up samples
+        if self.sound_bank.is_none()
+            || self.sound_bank.as_ref().unwrap().get_sample_rate() != sample_rate
+        {
+            self.sound_bank = Some(sound_bank::Bank::new(sample_rate));
+        }
+
         // pump midi messages
         for message in self.midi_events.try_iter() {
             match message {
@@ -260,6 +267,8 @@ impl SynthPlayer for Synth {
                             let time_sample = self.clock - start_clock;
                             if let Some(&v) = self
                                 .sound_bank
+                                .as_ref()
+                                .unwrap()
                                 .get_sound(self.config.params.channel_samples[i].load())
                                 .get(time_sample as usize)
                             {
