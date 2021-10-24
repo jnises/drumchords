@@ -95,7 +95,7 @@ impl App for Drumchords {
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         // TODO scrolling
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::auto_sized().show(ui, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading(NAME);
                 match self {
                     Self::Uninitialized => {
