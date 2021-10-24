@@ -7,6 +7,7 @@ use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
 use midly::{self, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
+use array_init::array_init;
 
 const NUM_CHANNELS: usize = 11;
 pub const PATTERN_LENGTH: u64 = 32;
@@ -169,8 +170,6 @@ pub struct Synth {
 
 impl Synth {
     pub fn new(midi_events: MidiChannel) -> Self {
-        const HIHAT_SAMPLE: AtomicCell<sound_bank::Sample> =
-            AtomicCell::new(sound_bank::Sample::Hihat);
         Self {
             sound_bank: None,
             clock: 0,
@@ -184,7 +183,7 @@ impl Synth {
                     bpm: (120 * 4).into(),
                     playing: true.into(),
                     muted: 0.into(),
-                    channel_samples: [HIHAT_SAMPLE; NUM_CHANNELS],
+                    channel_samples: array_init(|_| AtomicCell::new(sound_bank::Sample::Hihat)),
                 },
                 feedback: Feedback::new(),
                 selected: Default::default(),
