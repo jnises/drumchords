@@ -8,7 +8,6 @@ use log::{warn, Level, Metadata, Record};
 use web_sys::console;
 
 mod audio;
-mod keyboard;
 mod midi;
 mod synth;
 mod periodic_updater;
