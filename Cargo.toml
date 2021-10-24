@@ -34,6 +34,7 @@ enum-iterator = "0.7"
 strum_macros = "0.22"
 rubato = "0.10"
 array-init = "2.0"
+static_assertions = "1.1"
 
 [profile.release]
 # make things smaller

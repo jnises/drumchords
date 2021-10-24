@@ -8,6 +8,7 @@ use crossbeam::{atomic::AtomicCell, channel};
 use midly::{self, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
 use array_init::array_init;
+use static_assertions::const_assert;
 
 const NUM_CHANNELS: usize = 11;
 pub const PATTERN_LENGTH: u64 = 32;
@@ -235,7 +236,7 @@ impl SynthPlayer for Synth {
                     for channel in 0..NUM_CHANNELS {
                         let mut pattern = 0u32;
                         // TODO static assert?
-                        debug_assert!(PATTERN_LENGTH <= 32);
+                        const_assert!(PATTERN_LENGTH <= 32);
                         for b in 0..PATTERN_LENGTH {
                             if self.config.get_beat(channel, beat + b) {
                                 pattern |= 1 << (PATTERN_LENGTH - b - 1);
