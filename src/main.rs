@@ -1,7 +1,6 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 mod audio;
-mod keyboard;
 mod midi;
 mod periodic_updater;
 mod synth;
