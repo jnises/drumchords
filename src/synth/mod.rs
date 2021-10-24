@@ -7,7 +7,6 @@ use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
 use midly::{self, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
-use wmidi;
 
 const NUM_CHANNELS: usize = 11;
 pub const PATTERN_LENGTH: u64 = 32;
@@ -74,7 +73,7 @@ impl Config {
                 if triggered & 1 << n != 0 {
                     // TODO use different divisors. n2, fib?
                     let div = n + 1;
-                    let c = b / div & 1 == 0;
+                    let c = (b / div) & 1 == 0;
                     a = a != c;
                 }
             }
@@ -247,7 +246,7 @@ impl SynthPlayer for Synth {
                             .pattern
                             .store(pattern);
 
-                        if pattern >> PATTERN_LENGTH - 1 & 1 != 0 {
+                        if (pattern >> (PATTERN_LENGTH - 1)) & 1 != 0 {
                             self.playing[channel] = Some(TimedClip {
                                 start_clock: self.clock,
                             });

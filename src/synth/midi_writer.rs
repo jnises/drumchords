@@ -84,7 +84,7 @@ impl<'a, 'b> MidiWriter<'a, 'b> {
             debug_assert!(self.last_tick <= tick);
             self.track.push(TrackEvent {
                 delta: u28::try_from(u32::try_from(tick - self.last_tick).unwrap()).unwrap(),
-                kind: kind,
+                kind,
             });
             self.last_tick = tick;
         }

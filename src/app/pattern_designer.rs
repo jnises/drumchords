@@ -29,8 +29,8 @@ pub fn pattern_designer(
     pattern_length: u64,
 ) {
     debug_assert!(pattern_length <= 16);
-    debug_assert!(*fg_pattern & (!((1 << 1 + pattern_length) - 1)) == 0);
-    debug_assert!(bg_pattern & (!((1 << 1 + pattern_length) - 1)) == 0);
+    debug_assert!(*fg_pattern & (!((1 << (1 + pattern_length)) - 1)) == 0);
+    debug_assert!(bg_pattern & (!((1 << (1 + pattern_length)) - 1)) == 0);
     ui.horizontal(|ui| {
         for i in 0..pattern_length {
             let mut b = *fg_pattern >> i & 1 != 0;
