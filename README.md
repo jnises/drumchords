@@ -1,8 +1,6 @@
 # Drumchords
 
-Midi synth template project written in rust.
-
-![screenshot](docs/screenshot.jpg)
+Drum sequencer in frequency space.
 
 ## To build and run natively:
 ```
