@@ -1,10 +1,7 @@
 mod midi_writer;
 pub mod sound_bank;
 use midi_writer::MidiWriter;
-use std::{
-    convert::TryInto,
-    sync::Arc,
-};
+use std::{convert::TryInto, sync::Arc};
 
 use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};

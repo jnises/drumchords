@@ -1,9 +1,5 @@
 use midly::{num::u28, TrackEvent, TrackEventKind};
-use std::{
-    cmp::Ordering,
-    collections::BinaryHeap,
-    convert::TryFrom,
-};
+use std::{cmp::Ordering, collections::BinaryHeap, convert::TryFrom};
 
 #[derive(PartialEq, Eq)]
 pub struct Event<'a> {

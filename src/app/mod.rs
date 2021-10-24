@@ -1,27 +1,24 @@
 mod pattern_designer;
-mod utils;
 mod toggle;
+mod utils;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
 use crate::synth::{ChannelFeedback, Synth, PATTERN_LENGTH};
-use crate::{
-    audio::AudioManager,
-    synth,
-};
+use crate::{audio::AudioManager, synth};
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
-use eframe::egui::{ComboBox, Rect, Stroke, emath, pos2};
+use eframe::egui::{emath, pos2, ComboBox, Rect, Stroke};
 use eframe::{
     egui::{self, epaint, vec2, Color32},
     epi::{self, App},
 };
+use enum_iterator::IntoEnumIterator;
 use itertools::multizip;
 use log::warn;
 use parking_lot::Mutex;
 use pattern_designer::pattern_designer;
 use rfd::{MessageDialog, MessageLevel};
 use std::{collections::VecDeque, sync::Arc};
-use enum_iterator::IntoEnumIterator;
 
 const NAME: &str = "Drumchords";
 const VIS_SIZE: usize = 512;
@@ -272,15 +269,19 @@ impl App for Drumchords {
                             ui.label("channels:");
                             ui.vertical(|ui| {
                                 let mut muted = config.params.muted.load();
-                                for (channel_id, ChannelFeedback { pattern }, locked, feedback_selected, selected_sound_atomic) in
-                                    multizip((
-                                        0..,
-                                        config.feedback.channels.iter(),
-                                        config.params.locked.iter(),
-                                        config.selected.iter(),
-                                        config.params.channel_samples.iter(),
-                                    ))
-                                {
+                                for (
+                                    channel_id,
+                                    ChannelFeedback { pattern },
+                                    locked,
+                                    feedback_selected,
+                                    selected_sound_atomic,
+                                ) in multizip((
+                                    0..,
+                                    config.feedback.channels.iter(),
+                                    config.params.locked.iter(),
+                                    config.selected.iter(),
+                                    config.params.channel_samples.iter(),
+                                )) {
                                     ui.horizontal(|ui| {
                                         {
                                             let pattern = pattern.load();
@@ -324,18 +325,29 @@ impl App for Drumchords {
                                         // mute toggle
                                         let mut channel_muted = muted >> channel_id & 1 != 0;
                                         toggle::toggle(ui, &mut channel_muted, "🔇");
-                                        muted = muted & !(1 << channel_id) | (if channel_muted { 1 } else { 0 } << channel_id);
+                                        muted = muted & !(1 << channel_id)
+                                            | (if channel_muted { 1 } else { 0 } << channel_id);
 
                                         // sample selector
                                         let mut selected_sound = selected_sound_atomic.load();
-                                        ComboBox::from_id_source(egui::Id::new(channel_id).with("sample_combo"))
+                                        ComboBox::from_id_source(
+                                            egui::Id::new(channel_id).with("sample_combo"),
+                                        )
                                         .selected_text(selected_sound.to_string())
                                         .width(70f32)
-                                        .show_ui(ui, |ui| {
-                                            for s in synth::sound_bank::Sample::into_enum_iter() {
-                                                ui.selectable_value(&mut selected_sound, s, s.to_string());
-                                            }
-                                        });
+                                        .show_ui(
+                                            ui,
+                                            |ui| {
+                                                for s in synth::sound_bank::Sample::into_enum_iter()
+                                                {
+                                                    ui.selectable_value(
+                                                        &mut selected_sound,
+                                                        s,
+                                                        s.to_string(),
+                                                    );
+                                                }
+                                            },
+                                        );
                                         selected_sound_atomic.store(selected_sound);
                                     });
                                 }
