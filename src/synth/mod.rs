@@ -2,13 +2,12 @@ mod midi_writer;
 pub mod sound_bank;
 use midi_writer::MidiWriter;
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryInto,
     sync::Arc,
 };
 
 use anyhow::Result;
 use crossbeam::{atomic::AtomicCell, channel};
-use hound::WavReader;
 use midly::{self, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
 use wmidi;

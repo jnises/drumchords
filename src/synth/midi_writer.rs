@@ -1,8 +1,8 @@
-use midly::{num::u28, MetaMessage, TrackEvent, TrackEventKind};
+use midly::{num::u28, TrackEvent, TrackEventKind};
 use std::{
     cmp::Ordering,
     collections::BinaryHeap,
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
 };
 
 #[derive(PartialEq, Eq)]

@@ -3,10 +3,10 @@ mod utils;
 mod toggle;
 use crate::midi::MidiReader;
 use crate::periodic_updater::PeriodicUpdater;
-use crate::synth::{ChannelFeedback, Config, Synth, PATTERN_LENGTH};
+use crate::synth::{ChannelFeedback, Synth, PATTERN_LENGTH};
 use crate::{
     audio::AudioManager,
-    synth::{self, Feedback},
+    synth,
 };
 use cpal::traits::DeviceTrait;
 use crossbeam::channel;
