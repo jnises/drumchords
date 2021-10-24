@@ -19,7 +19,7 @@ pub struct AudioManager<T> {
     buffer_size: Arc<AtomicCell<u32>>,
     forced_buffer_size: Option<u32>,
     stream: Option<Stream>,
-    error_callback: Arc<Box<dyn Fn(String) + Send + Sync>>,
+    error_callback: Arc<dyn Fn(String) + Send + Sync>,
     synth: T,
     left_visualization_consumer: Option<ringbuf::Consumer<f32>>,
 }
