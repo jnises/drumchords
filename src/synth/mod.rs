@@ -235,7 +235,6 @@ impl SynthPlayer for Synth {
                 if beat_frame == 0 {
                     for channel in 0..NUM_CHANNELS {
                         let mut pattern = 0u32;
-                        // TODO static assert?
                         const_assert!(PATTERN_LENGTH <= 32);
                         for b in 0..PATTERN_LENGTH {
                             if self.config.get_beat(channel, beat + b) {
