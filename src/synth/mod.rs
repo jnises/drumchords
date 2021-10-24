@@ -4,10 +4,10 @@ use midi_writer::MidiWriter;
 use std::{convert::TryInto, sync::Arc};
 
 use anyhow::Result;
+use array_init::array_init;
 use crossbeam::{atomic::AtomicCell, channel};
 use midly::{self, MetaMessage, TrackEvent, TrackEventKind};
 use num::Integer;
-use array_init::array_init;
 use static_assertions::const_assert;
 
 const NUM_CHANNELS: usize = 11;
