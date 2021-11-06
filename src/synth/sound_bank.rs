@@ -10,6 +10,7 @@ pub enum Sample {
     Hihat,
     Snare,
     Cowbell,
+    Kick,
 }
 
 #[derive(Clone)]
@@ -52,6 +53,10 @@ impl Bank {
                 Sample::Cowbell => {
                     sample_to_vec(include_bytes!("../../samples/cowbell.wav"), sample_rate)
                 },
+                Sample::Kick => {
+                    sample_to_vec(include_bytes!("../../samples/kick.wav"), sample_rate)
+                },
+
             },
             sample_rate,
         }
