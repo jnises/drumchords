@@ -21,18 +21,24 @@ pub struct Bank {
 
 fn sample_to_vec(data: &[u8], sample_rate: u32) -> Vec<f32> {
     let wav = WavReader::new(data).unwrap();
-    let in_sample_rate = wav.spec().sample_rate as usize;
+    let in_sample_rate = wav.spec().sample_rate as f64;
     let num_samples = wav.len() as usize;
     assert!(wav.spec().channels == 1);
     let buf: Vec<f32> = wav
         .into_samples::<i16>()
         .map(|s| s.unwrap() as f32 / i16::MAX as f32)
         .collect();
-    let mut resampler = rubato::FftFixedIn::new(
-        in_sample_rate,
-        sample_rate as usize,
+    // TODO use fft resampler instead? how to avoid it changing the timing?
+    let mut resampler = rubato::SincFixedIn::new(
+        sample_rate as f64 / in_sample_rate,
+        rubato::InterpolationParameters {
+            sinc_len: 256,
+            f_cutoff: 0.95,
+            oversampling_factor: 128,
+            interpolation: rubato::InterpolationType::Cubic,
+            window: rubato::WindowFunction::Blackman,
+        },
         num_samples,
-        1,
         1, //< channels
     );
     let out = resampler.process(&[buf]).unwrap();
