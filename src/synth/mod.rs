@@ -286,7 +286,7 @@ impl SynthPlayer for Synth {
                         }
                     }
                     // TODO do proper lowpass
-                    const LOWPASS_AMOUNT: f32 = 0.4;
+                    const LOWPASS_AMOUNT: f32 = 0.1;
                     *lowpass = LOWPASS_AMOUNT * *lowpass + (1f32 - LOWPASS_AMOUNT) * channel_value;
                     value += *lowpass;
                 }
