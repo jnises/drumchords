@@ -24,5 +24,4 @@ Then open a browser (with webmidi support) and point it to http://localhost:8000
 
 ## TODO
 * play multiple samples per channel simultaneously
-* make bpm configurable
 * store settings in url
