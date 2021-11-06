@@ -1,5 +1,6 @@
 mod midi_writer;
 pub mod sound_bank;
+use itertools::multizip;
 use midi_writer::MidiWriter;
 use std::{convert::TryInto, sync::Arc};
 
@@ -168,6 +169,8 @@ pub struct Synth {
 
     config: Arc<Config>,
     playing: [Option<TimedClip>; NUM_CHANNELS],
+
+    lowpass: [f32; NUM_CHANNELS],
 }
 
 impl Synth {
@@ -192,6 +195,7 @@ impl Synth {
                 selected: Default::default(),
             }),
             playing: Default::default(),
+            lowpass: Default::default(),
         }
     }
 
@@ -258,12 +262,13 @@ impl SynthPlayer for Synth {
                 }
 
                 let mut value = 0f32;
-                for (i, (sample, volume_db)) in self
-                    .playing
-                    .iter_mut()
-                    .zip(self.config.params.channel_volumes_db.iter())
-                    .enumerate()
-                {
+                for (i, sample, volume_db, lowpass) in multizip((
+                    0..,
+                    self.playing.iter_mut(),
+                    self.config.params.channel_volumes_db.iter(),
+                    self.lowpass.iter_mut(),
+                )) {
+                    let mut channel_value = 0f32;
                     if muted >> i & 1 == 0 {
                         if let Some(TimedClip { start_clock }) = *sample {
                             let time_sample = self.clock - start_clock;
@@ -274,14 +279,20 @@ impl SynthPlayer for Synth {
                                 .get_sound(self.config.params.channel_samples[i].load())
                                 .get(time_sample as usize)
                             {
-                                value += v * 10f32.powf(volume_db.load() / 10f32);
+                                channel_value = v * 10f32.powf(volume_db.load() / 10f32);
                             } else {
                                 *sample = None;
                             }
                         }
                     }
+                    // TODO do proper lowpass
+                    const LOWPASS_AMOUNT: f32 = 0.4;
+                    *lowpass = LOWPASS_AMOUNT * *lowpass + (1f32 - LOWPASS_AMOUNT) * channel_value;
+                    value += *lowpass;
                 }
+
                 value *= gain;
+
                 for sample in frame.iter_mut() {
                     *sample = value;
                 }
