@@ -261,7 +261,13 @@ impl App for Drumchords {
                             ui.horizontal(|ui| {
                                 ui.label("gain:");
                                 let mut gain = config.params.gain_db.load();
-                                ui.add(egui::DragValue::new(&mut gain).suffix("dB").speed(0.1));
+                                // TODO make fixed size
+                                ui.add(
+                                    egui::DragValue::new(&mut gain)
+                                        .suffix("dB")
+                                        .speed(0.1)
+                                        .min_decimals(1),
+                                );
                                 config.params.gain_db.store(gain);
                             });
                         });
@@ -332,7 +338,13 @@ impl App for Drumchords {
 
                                         // volume
                                         let mut volume = volume_atomic.load();
-                                        ui.add(egui::DragValue::new(&mut volume).suffix("dB").speed(0.1));
+                                        // TODO make fixed size
+                                        ui.add(
+                                            egui::DragValue::new(&mut volume)
+                                                .suffix("dB")
+                                                .speed(0.1)
+                                                .min_decimals(1),
+                                        );
                                         volume_atomic.store(volume);
 
                                         // sample selector
