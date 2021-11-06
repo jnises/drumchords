@@ -260,9 +260,9 @@ impl App for Drumchords {
                         ui.group(|ui| {
                             ui.horizontal(|ui| {
                                 ui.label("gain:");
-                                let mut gain = config.params.gain.load();
-                                ui.add(egui::Slider::new(&mut gain, 0f32..=1f32));
-                                config.params.gain.store(gain);
+                                let mut gain = config.params.gain_db.load();
+                                ui.add(egui::DragValue::new(&mut gain).suffix("dB").speed(0.1));
+                                config.params.gain_db.store(gain);
                             });
                         });
                         ui.group(|ui| {
@@ -275,12 +275,14 @@ impl App for Drumchords {
                                     locked,
                                     feedback_selected,
                                     selected_sound_atomic,
+                                    volume_atomic,
                                 ) in multizip((
                                     0..,
                                     config.feedback.channels.iter(),
                                     config.params.locked.iter(),
                                     config.selected.iter(),
                                     config.params.channel_samples.iter(),
+                                    config.params.channel_volumes_db.iter(),
                                 )) {
                                     ui.horizontal(|ui| {
                                         {
@@ -327,6 +329,11 @@ impl App for Drumchords {
                                         toggle::toggle(ui, &mut channel_muted, "🔇");
                                         muted = muted & !(1 << channel_id)
                                             | (if channel_muted { 1 } else { 0 } << channel_id);
+
+                                        // volume
+                                        let mut volume = volume_atomic.load();
+                                        ui.add(egui::DragValue::new(&mut volume).suffix("dB").speed(0.1));
+                                        volume_atomic.store(volume);
 
                                         // sample selector
                                         let mut selected_sound = selected_sound_atomic.load();

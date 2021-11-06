@@ -26,13 +26,14 @@ struct NoteEvent {
 
 // TODO handle params using messages instead?
 pub struct Params {
-    pub gain: AtomicCell<f32>,
+    pub gain_db: AtomicCell<f32>,
     pub locked: [AtomicCell<u16>; NUM_CHANNELS],
     pub bpm: AtomicCell<u32>,
     pub playing: AtomicCell<bool>,
     // TODO assert that this is wide enough
     pub muted: AtomicCell<u64>,
     pub channel_samples: [AtomicCell<sound_bank::Sample>; NUM_CHANNELS],
+    pub channel_volumes_db: [AtomicCell<f32>; NUM_CHANNELS],
 }
 
 #[derive(Default)]
@@ -177,7 +178,7 @@ impl Synth {
             midi_events,
             config: Arc::new(Config {
                 params: Params {
-                    gain: 1f32.into(),
+                    gain_db: 0f32.into(),
                     locked: Default::default(),
                     // not your normal bpm
                     // TODO do it normal instead. but what to call it?
@@ -185,6 +186,7 @@ impl Synth {
                     playing: true.into(),
                     muted: 0.into(),
                     channel_samples: array_init(|_| AtomicCell::new(sound_bank::Sample::Hihat)),
+                    channel_volumes_db: array_init(|_| AtomicCell::new(0f32)),
                 },
                 feedback: Feedback::new(),
                 selected: Default::default(),
@@ -228,9 +230,11 @@ impl SynthPlayer for Synth {
 
         // produce sound
         let frames_per_beat = sample_rate * 60 / self.config.params.bpm.load();
-        let gain = self.config.params.gain.load();
+        let gain = 10f32.powf(self.config.params.gain_db.load() / 10f32);
+        let muted = self.config.params.muted.load();
+        let playing = self.config.params.playing.load();
         for frame in output.chunks_exact_mut(channels) {
-            if self.config.params.playing.load() {
+            if playing {
                 let (beat, beat_frame) = self.clock.div_mod_floor(&frames_per_beat.into());
                 if beat_frame == 0 {
                     for channel in 0..NUM_CHANNELS {
@@ -254,8 +258,12 @@ impl SynthPlayer for Synth {
                 }
 
                 let mut value = 0f32;
-                let muted = self.config.params.muted.load();
-                for (i, sample) in self.playing.iter_mut().enumerate() {
+                for (i, (sample, volume_db)) in self
+                    .playing
+                    .iter_mut()
+                    .zip(self.config.params.channel_volumes_db.iter())
+                    .enumerate()
+                {
                     if muted >> i & 1 == 0 {
                         if let Some(TimedClip { start_clock }) = *sample {
                             let time_sample = self.clock - start_clock;
@@ -266,7 +274,7 @@ impl SynthPlayer for Synth {
                                 .get_sound(self.config.params.channel_samples[i].load())
                                 .get(time_sample as usize)
                             {
-                                value += v;
+                                value += v * 10f32.powf(volume_db.load() / 10f32);
                             } else {
                                 *sample = None;
                             }
