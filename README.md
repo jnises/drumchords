@@ -23,6 +23,6 @@ cargo make serve
 Then open a browser (with webmidi support) and point it to http://localhost:8000
 
 ## TODO
-* add kick
+* handle new sample triggered before first one finished
 * make bpm configurable
 * store settings in url
