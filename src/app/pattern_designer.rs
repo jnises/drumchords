@@ -1,6 +1,6 @@
-use eframe::egui::{self, vec2, Rgba};
+use eframe::egui::{self, vec2, Align2, Rgba, TextStyle};
 
-fn selector(ui: &mut egui::Ui, on: &mut bool, bg: bool) {
+fn selector(ui: &mut egui::Ui, on: &mut bool, bg: bool, label: &str) {
     let y = ui.spacing().interact_size.y * 0.5;
     let (rect, response) = ui.allocate_exact_size(vec2(y, y), egui::Sense::click());
     if response.clicked() {
@@ -19,7 +19,19 @@ fn selector(ui: &mut egui::Ui, on: &mut bool, bg: bool) {
         how_on,
     );
     ui.painter().rect(rect, radius, color, visuals.bg_stroke);
-    // TODO draw divisor
+    let text_color = color
+        + if color.intensity() > 0.5 {
+            Rgba::from_gray(-0.7)
+        } else {
+            Rgba::from_gray(0.3)
+        };
+    ui.painter().text(
+        rect.center(),
+        Align2::CENTER_CENTER,
+        label,
+        TextStyle::Small,
+        text_color.into(),
+    );
 }
 
 pub fn pattern_designer(
@@ -35,7 +47,8 @@ pub fn pattern_designer(
         for i in 0..pattern_length {
             let mut b = *fg_pattern >> i & 1 != 0;
             let bg = bg_pattern >> i & 1 != 0;
-            selector(ui, &mut b, bg);
+            // TODO do the label further out to support different schemes
+            selector(ui, &mut b, bg, &(i + 1).to_string());
             *fg_pattern = *fg_pattern & !(1 << i) | (b as u16) << i;
         }
         if ui.small_button("🔏").clicked() {
