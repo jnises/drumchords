@@ -183,9 +183,7 @@ impl Synth {
                 params: Params {
                     gain_db: 0f32.into(),
                     locked: Default::default(),
-                    // not your normal bpm
-                    // TODO do it normal instead. but what to call it?
-                    bpm: (120 * 4).into(),
+                    bpm: 120.into(),
                     playing: true.into(),
                     muted: 0.into(),
                     channel_samples: array_init(|_| AtomicCell::new(sound_bank::Sample::Hihat)),
@@ -233,7 +231,7 @@ impl SynthPlayer for Synth {
         }
 
         // produce sound
-        let frames_per_beat = sample_rate * 60 / self.config.params.bpm.load();
+        let frames_per_beat = sample_rate * 60 / (self.config.params.bpm.load() * 4);
         let gain = 10f32.powf(self.config.params.gain_db.load() / 10f32);
         let muted = self.config.params.muted.load();
         let playing = self.config.params.playing.load();

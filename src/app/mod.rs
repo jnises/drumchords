@@ -257,18 +257,34 @@ impl App for Drumchords {
                         if left_vis_buffer.len() > VIS_SIZE {
                             drop(left_vis_buffer.drain(0..left_vis_buffer.len() - VIS_SIZE));
                         }
-                        ui.group(|ui| {
-                            ui.horizontal(|ui| {
-                                ui.label("gain:");
-                                let mut gain = config.params.gain_db.load();
-                                // TODO make fixed size
-                                ui.add(
-                                    egui::DragValue::new(&mut gain)
-                                        .suffix("dB")
-                                        .speed(0.1)
-                                        .min_decimals(1),
-                                );
-                                config.params.gain_db.store(gain);
+                        ui.horizontal(|ui| {
+                            ui.group(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("bpm:");
+                                    let mut bpm = config.params.bpm.load();
+                                    // TODO make fixed size
+                                    ui.add(
+                                        egui::DragValue::new(&mut bpm)
+                                            .speed(1)
+                                            .clamp_range(1..=1000)
+                                            .max_decimals(0),
+                                    );
+                                    config.params.bpm.store(bpm);
+                                });
+                            });
+                            ui.group(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("gain:");
+                                    let mut gain = config.params.gain_db.load();
+                                    // TODO make fixed size
+                                    ui.add(
+                                        egui::DragValue::new(&mut gain)
+                                            .suffix("dB")
+                                            .speed(0.1)
+                                            .min_decimals(1),
+                                    );
+                                    config.params.gain_db.store(gain);
+                                });
                             });
                         });
                         ui.group(|ui| {
