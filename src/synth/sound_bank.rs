@@ -7,7 +7,8 @@ use strum_macros::Display;
 #[derive(Copy, Clone, enum_map::Enum, Display, IntoEnumIterator, PartialEq)]
 #[repr(u8)]
 pub enum Sample {
-    Hihat,
+    HihatClosed,
+    HihatOpen,
     Snare,
     Cowbell,
     Kick,
@@ -50,8 +51,11 @@ impl Bank {
     pub fn new(sample_rate: u32) -> Self {
         Bank {
             samples: enum_map! {
-                Sample::Hihat => {
-                    sample_to_vec(include_bytes!("../../samples/hihat.wav"), sample_rate)
+                Sample::HihatClosed => {
+                    sample_to_vec(include_bytes!("../../samples/hihat_closed.wav"), sample_rate)
+                },
+                Sample::HihatOpen => {
+                    sample_to_vec(include_bytes!("../../samples/hihat_open.wav"), sample_rate)
                 },
                 Sample::Snare => {
                     sample_to_vec(include_bytes!("../../samples/snare.wav"), sample_rate)
@@ -62,7 +66,6 @@ impl Bank {
                 Sample::Kick => {
                     sample_to_vec(include_bytes!("../../samples/kick.wav"), sample_rate)
                 },
-
             },
             sample_rate,
         }
