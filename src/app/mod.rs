@@ -241,7 +241,7 @@ impl App for Drumchords {
                         }
                         let plot_width = ui.available_width().min(300.);
                         let (_, rect) = ui.allocate_space(vec2(plot_width, plot_width * 0.5));
-                        let p = ui.painter();
+                        let p = ui.painter_at(rect);
                         p.rect_filled(rect, 10f32, Color32::BLACK);
                         let to_rect = emath::RectTransform::from_to(
                             Rect::from_x_y_ranges(0.0..=(VIS_SIZE / 2) as f32, -1.0..=1.0),
