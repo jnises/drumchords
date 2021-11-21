@@ -95,7 +95,7 @@ impl Config {
             midly::Timing::Metrical(ticks_per_beat.into()),
         ));
         let mut track = vec![];
-        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load() * 4).try_into()?;
+        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load()).try_into()?;
         track.push(TrackEvent {
             delta: 0.into(),
             kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
