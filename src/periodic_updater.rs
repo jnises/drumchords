@@ -1,4 +1,4 @@
-use eframe::epi::RepaintSignal;
+use eframe::epi::backend::RepaintSignal;
 
 type Repainter = std::sync::Arc<dyn RepaintSignal>;
 cfg_if::cfg_if! {

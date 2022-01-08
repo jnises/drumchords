@@ -92,7 +92,7 @@ impl App for Drumchords {
         }
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         // TODO scrolling
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -108,8 +108,7 @@ impl App for Drumchords {
                         // send repaint periodically instead of each frame since the rendering doesn't seem to be vsynced when the window is hidden on mac
                         // TODO stop this when not in focus
                         if data.periodic_updater.is_none() {
-                            let repaint_signal = frame.repaint_signal();
-                            data.periodic_updater = Some(PeriodicUpdater::new(repaint_signal));
+                            data.periodic_updater = Some(PeriodicUpdater::new(frame.repaint_signal()));
                         }
                         // TODO nicer to use destructuring here?
                         let audio = &mut data.audio;
