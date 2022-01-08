@@ -747,19 +747,19 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "egui",
  "egui-winit",
- "egui_glow",
+ "egui_glium",
  "egui_web",
  "epi",
 ]
 
 [[package]]
 name = "egui"
-version = "0.16.1"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+version = "0.16.0"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "ahash",
  "epaint",
@@ -769,38 +769,32 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "copypasta",
  "egui",
  "epi",
- "instant",
  "webbrowser",
  "winit",
 ]
 
 [[package]]
-name = "egui_glow"
+name = "egui_glium"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "egui",
  "egui-winit",
  "epi",
- "glow",
- "glutin",
- "memoffset",
- "wasm-bindgen",
- "web-sys",
+ "glium",
 ]
 
 [[package]]
 name = "egui_web"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "egui",
- "egui_glow",
  "epi",
  "js-sys",
  "wasm-bindgen",
@@ -817,7 +811,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 
 [[package]]
 name = "enum-iterator"
@@ -875,7 +869,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -887,7 +881,7 @@ dependencies = [
 [[package]]
 name = "epi"
 version = "0.16.0"
-source = "git+https://github.com/jnises/egui?branch=repaint_signal#d1899066b1b039a3554d74f96fe2ad74e4462f55"
+source = "git+https://github.com/jnises/egui?branch=0.16-with-repaint#0f0897bc637db6f67bae62fe1a4c142e3c44285f"
 dependencies = [
  "egui",
 ]
@@ -995,22 +989,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "glium"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ab4f09b43d8ee427a700cb9ed3b20e0e858d62a509edded1a98ca5707d68e19"
+dependencies = [
+ "backtrace",
+ "fnv",
+ "gl_generator",
+ "glutin",
+ "lazy_static",
+ "memoffset",
+ "smallvec",
+ "takeable-option",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
-
-[[package]]
-name = "glow"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8bd5877156a19b8ac83a29b2306fe20537429d318f3ff0a1a2119f8d9c61919"
-dependencies = [
- "js-sys",
- "slotmap",
- "wasm-bindgen",
- "web-sys",
-]
 
 [[package]]
 name = "glutin"
@@ -2030,15 +2028,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
-name = "slotmap"
-version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1e08e261d0e8f5c43123b7adf3e4ca1690d655377ac93a03b2c9d3e98de1342"
-dependencies = [
- "version_check",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2162,6 +2151,12 @@ dependencies = [
  "toml",
  "version-compare",
 ]
+
+[[package]]
+name = "takeable-option"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36ae8932fcfea38b7d3883ae2ab357b0d57a02caaa18ebb4f5ece08beaec4aa0"
 
 [[package]]
 name = "termcolor"
