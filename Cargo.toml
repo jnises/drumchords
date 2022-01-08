@@ -16,8 +16,7 @@ chrono = "0.4"
 console_error_panic_hook = "0.1"
 cpal = {version = "0.13", features = ["wasm-bindgen"]}
 crossbeam = "0.8"
-# need custom repo for repaint_signal
-eframe = {git = "https://github.com/jnises/egui", branch = "0.16-with-repaint"} 
+eframe = "0.16"
 enum-iterator = "0.7" 
 enum-map = "1.1" 
 env_logger = "0.9" 

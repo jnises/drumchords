@@ -108,7 +108,7 @@ impl App for Drumchords {
                         // send repaint periodically instead of each frame since the rendering doesn't seem to be vsynced when the window is hidden on mac
                         // TODO stop this when not in focus
                         if data.periodic_updater.is_none() {
-                            data.periodic_updater = Some(PeriodicUpdater::new(frame.repaint_signal()));
+                            data.periodic_updater = Some(PeriodicUpdater::new(frame.clone()));
                         }
                         // TODO nicer to use destructuring here?
                         let audio = &mut data.audio;
