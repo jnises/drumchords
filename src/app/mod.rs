@@ -41,7 +41,7 @@ pub struct Data {
 }
 
 pub enum Drumchords {
-    Initialized(Data),
+    Initialized(Box<Data>),
     Uninitialized,
 }
 
@@ -56,7 +56,7 @@ impl Drumchords {
         let audio = AudioManager::new(synth, move |e| {
             *status_clone.lock() = e;
         });
-        *self = Self::Initialized(Data {
+        *self = Self::Initialized(Box::new(Data {
             setting_tab: Setting::Output,
             audio,
             midi,
@@ -65,7 +65,7 @@ impl Drumchords {
             left_vis_buffer: VecDeque::with_capacity(VIS_SIZE * 2),
             synth_config,
             periodic_updater: None,
-        });
+        }));
     }
 
     pub fn new() -> Self {
@@ -84,11 +84,8 @@ impl App for Drumchords {
     }
 
     fn on_exit(&mut self) {
-        if let Self::Initialized(Data {
-            periodic_updater, ..
-        }) = self
-        {
-            periodic_updater.take();
+        if let Self::Initialized(data) = self {
+            data.periodic_updater.take();
         }
     }
 
