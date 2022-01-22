@@ -12,7 +12,7 @@ cargo run --release
 cargo install cargo-make
 
 # option 1
-cargo make build_web
+cargo make build_web_release
 # option 2
 cargo make watch
 
