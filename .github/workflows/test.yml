@@ -23,7 +23,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}      
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: alsa
+        run: sudo apt-get install -y alsa-base
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
