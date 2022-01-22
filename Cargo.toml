@@ -18,7 +18,7 @@ cpal = {version = "0.13", features = ["wasm-bindgen"]}
 crossbeam = "0.8"
 eframe = "0.16"
 enum-iterator = "0.7" 
-enum-map = "1.1" 
+enum-map = "2.0" 
 env_logger = "0.9" 
 hound = "3.4.0" 
 itertools = "0.10" 
@@ -47,9 +47,7 @@ wmidi = "4.0" #< TODO replace this with midly?
 # make things smaller
 codegen-units = 1
 lto = true
-opt-level = 'z'
+opt-level = 's'
 
 [package.metadata.wasm-pack.profile.release]
-#wasm-opt = ['-Os']
-# wasm-opt doesn't seem to work on apple silicon yet
-wasm-opt = false
+wasm-opt = ['-Os', '--fast-math']
