@@ -17,14 +17,6 @@ pub const NOTES_PER_CHANNEL: u64 = 12;
 
 type MidiChannel = channel::Receiver<wmidi::MidiMessage<'static>>;
 
-#[derive(Clone)]
-struct NoteEvent {
-    note: wmidi::Note,
-    velocity: wmidi::U7,
-    pressed: u64,
-    released: Option<u64>,
-}
-
 // TODO handle params using messages instead?
 pub struct Params {
     pub gain_db: AtomicCell<f32>,
