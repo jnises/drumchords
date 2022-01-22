@@ -186,7 +186,9 @@ impl Synth {
                     bpm: 120.into(),
                     playing: true.into(),
                     muted: 0.into(),
-                    channel_samples: array_init(|_| AtomicCell::new(sound_bank::Sample::HihatClosed)),
+                    channel_samples: array_init(|_| {
+                        AtomicCell::new(sound_bank::Sample::HihatClosed)
+                    }),
                     channel_volumes_db: array_init(|_| AtomicCell::new(0f32)),
                 },
                 feedback: Feedback::new(),
