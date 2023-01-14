@@ -31,6 +31,7 @@ fn sample_to_vec(data: &[u8], sample_rate: u32) -> Vec<f32> {
     // TODO use fft resampler instead? how to avoid it changing the timing?
     let mut resampler = rubato::SincFixedIn::new(
         sample_rate as f64 / in_sample_rate,
+        1.0,
         rubato::InterpolationParameters {
             sinc_len: 256,
             f_cutoff: 0.95,
@@ -40,8 +41,9 @@ fn sample_to_vec(data: &[u8], sample_rate: u32) -> Vec<f32> {
         },
         num_samples,
         1, //< channels
-    );
-    let out = resampler.process(&[buf]).unwrap();
+    )
+    .unwrap();
+    let out = resampler.process(&[buf], None).unwrap();
     debug_assert!(out.len() == 1);
     out.into_iter().next().unwrap()
 }
