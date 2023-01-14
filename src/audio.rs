@@ -21,7 +21,7 @@ pub struct AudioManager<T> {
     stream: Option<Stream>,
     error_callback: Arc<dyn Fn(String) + Send + Sync>,
     synth: T,
-    left_visualization_consumer: Option<ringbuf::Consumer<f32>>,
+    left_visualization_consumer: Option<ringbuf::HeapConsumer<f32>>,
 }
 
 impl<T> AudioManager<T>
@@ -111,7 +111,7 @@ where
                     let error_callback = self.error_callback.clone();
                     let buffer_size = self.buffer_size.clone();
                     let (mut left_vis_prod, left_vis_cons) =
-                        ringbuf::RingBuffer::new(VISUALIZATION_BUFFER_SIZE).split();
+                        ringbuf::HeapRb::new(VISUALIZATION_BUFFER_SIZE).split();
                     self.left_visualization_consumer = Some(left_vis_cons);
                     let stream = device.build_output_stream(
                         &config,
@@ -168,14 +168,10 @@ where
     where
         F: FnMut(f32),
     {
-        if let Some(ref mut cons) = self.left_visualization_consumer {
-            cons.pop_each(
-                |a| {
-                    f(a);
-                    true
-                },
-                None,
-            );
+        if let Some(cons) = &mut self.left_visualization_consumer {
+            for a in cons.pop_iter() {
+                f(a);
+            }
         }
     }
 }
