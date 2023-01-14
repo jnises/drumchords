@@ -1,10 +1,9 @@
-use enum_iterator::IntoEnumIterator;
 use enum_map::{enum_map, EnumMap};
 use hound::WavReader;
 use rubato::Resampler;
 use strum_macros::Display;
 
-#[derive(Copy, Clone, enum_map::Enum, Display, IntoEnumIterator, PartialEq)]
+#[derive(Copy, Clone, enum_map::Enum, Display, enum_iterator::Sequence, PartialEq)]
 #[repr(u8)]
 pub enum Sample {
     HihatClosed,

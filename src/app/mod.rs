@@ -12,7 +12,6 @@ use eframe::{
     egui::{self, epaint, vec2, Color32},
     epi::{self, App},
 };
-use enum_iterator::IntoEnumIterator;
 use itertools::multizip;
 use log::warn;
 use parking_lot::Mutex;
@@ -346,7 +345,7 @@ impl App for Drumchords {
                                         let mut channel_muted = muted >> channel_id & 1 != 0;
                                         toggle::toggle(ui, &mut channel_muted, "🔇");
                                         muted = muted & !(1 << channel_id)
-                                            | (if channel_muted { 1 } else { 0 } << channel_id);
+                                            | u64::from(channel_muted);
 
                                         // volume
                                         let mut volume = volume_atomic.load();
@@ -369,7 +368,9 @@ impl App for Drumchords {
                                         .show_ui(
                                             ui,
                                             |ui| {
-                                                for s in synth::sound_bank::Sample::into_enum_iter()
+                                                for s in
+                                                    enum_iterator::all::<synth::sound_bank::Sample>(
+                                                    )
                                                 {
                                                     ui.selectable_value(
                                                         &mut selected_sound,
