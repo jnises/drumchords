@@ -344,8 +344,8 @@ impl App for Drumchords {
                                         // mute toggle
                                         let mut channel_muted = muted >> channel_id & 1 != 0;
                                         toggle::toggle(ui, &mut channel_muted, "🔇");
-                                        muted = muted & !(1 << channel_id)
-                                            | u64::from(channel_muted);
+                                        muted =
+                                            muted & !(1 << channel_id) | u64::from(channel_muted);
 
                                         // volume
                                         let mut volume = volume_atomic.load();
