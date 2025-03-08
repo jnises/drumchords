@@ -2,7 +2,7 @@ mod midi_writer;
 pub mod sound_bank;
 use itertools::multizip;
 use midi_writer::MidiWriter;
-use std::{convert::TryInto, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use array_init::array_init;
@@ -66,7 +66,7 @@ impl Config {
         let f = |b| {
             let mut a = false;
             for n in 0..NOTES_PER_CHANNEL {
-                if triggered & 1 << n != 0 {
+                if triggered & (1 << n) != 0 {
                     // TODO use different divisors. n2, fib?
                     let div = n + 1;
                     let c = (b / div) & 1 == 0;
@@ -87,7 +87,7 @@ impl Config {
             midly::Timing::Metrical(ticks_per_beat.into()),
         ));
         let mut track = vec![];
-        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load()).try_into()?;
+        let us_per_beat = (60 * 1_000_000 / self.params.bpm.load()).into();
         track.push(TrackEvent {
             delta: 0.into(),
             kind: TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)),
@@ -261,7 +261,7 @@ impl SynthPlayer for Synth {
                     self.lowpass.iter_mut(),
                 )) {
                     let mut channel_value = 0f32;
-                    if muted >> i & 1 == 0 {
+                    if (muted >> i) & 1 == 0 {
                         if let Some(TimedClip { start_clock }) = *sample {
                             let time_sample = self.clock - start_clock;
                             if let Some(&v) = self

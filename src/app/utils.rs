@@ -52,7 +52,7 @@ pub fn save_midi_file(data: &[u8]) {
         let _ = MessageDialog::new()
             .set_level(MessageLevel::Error)
             .set_title("error")
-            .set_description(&e.to_string())
+            .set_description(e.to_string())
             .show();
     }
 }
