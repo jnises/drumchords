@@ -45,11 +45,11 @@ pub fn pattern_designer(
     debug_assert!(bg_pattern & (!((1 << (1 + pattern_length)) - 1)) == 0);
     ui.horizontal(|ui| {
         for i in 0..pattern_length {
-            let mut b = *fg_pattern >> i & 1 != 0;
-            let bg = bg_pattern >> i & 1 != 0;
+            let mut b = (*fg_pattern >> i) & 1 != 0;
+            let bg = (bg_pattern >> i) & 1 != 0;
             // TODO do the label further out to support different schemes
             selector(ui, &mut b, bg, &(i + 1).to_string());
-            *fg_pattern = *fg_pattern & !(1 << i) | (b as u16) << i;
+            *fg_pattern = *fg_pattern & !(1 << i) | ((b as u16) << i);
         }
         if ui.small_button("🔏").clicked() {
             *fg_pattern |= bg_pattern;

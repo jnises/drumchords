@@ -317,7 +317,7 @@ impl App for Drumchords {
                                             r.set_right(r.left() + cell_width);
                                             for i in 0..PATTERN_LENGTH {
                                                 let filled =
-                                                    pattern >> (PATTERN_LENGTH - 1 - i) & 1 != 0;
+                                                    (pattern >> (PATTERN_LENGTH - 1 - i)) & 1 != 0;
                                                 let color = if filled {
                                                     if i == 0 {
                                                         Color32::RED
@@ -342,7 +342,7 @@ impl App for Drumchords {
                                         locked.store(fg_pattern);
 
                                         // mute toggle
-                                        let mut channel_muted = muted >> channel_id & 1 != 0;
+                                        let mut channel_muted = (muted >> channel_id) & 1 != 0;
                                         toggle::toggle(ui, &mut channel_muted, "🔇");
                                         muted =
                                             muted & !(1 << channel_id) | u64::from(channel_muted);
