@@ -131,7 +131,7 @@ impl App for Drumchords {
                                         let _ = MessageDialog::new()
                                             .set_level(MessageLevel::Error)
                                             .set_title("midi export error")
-                                            .set_description(&e.to_string())
+                                            .set_description(e.to_string())
                                             .show();
                                     }
                                 }
