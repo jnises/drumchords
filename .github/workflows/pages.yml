@@ -24,7 +24,7 @@ jobs:
       - name: cargo-make
         run: cargo install cargo-make
       - name: Build
-        run: cargo-make build_web_release
+        run: cargo make build_web_release
         env:
           public_url: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
       - name: Deploy
